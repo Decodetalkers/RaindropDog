@@ -19,12 +19,17 @@ struct Active {
 struct Ui {
     running_button: gtk::Button,
     ui_label: gtk::Label,
+    func_label: gtk::Label,
+    add_label: gtk::Label,
+    port_label: gtk::Label,
+    url_label: gtk::Label,
 }
 enum Tcp {
     Ss,
     V2,
 }
 #[allow(dead_code)]
+#[derive(Clone)]
 struct Urls {
     func: String,
     urls: String,
@@ -185,7 +190,25 @@ fn build_ui(application: &gtk::Application) {
 
     // Creation of the label.
     let label = Label::new(None);
+    let label_func = Label::new(Some("func:"));
+    label_func.set_justify(gtk::Justification::Left);
+    let label_add = Label::new(Some("add:"));
+    label_add.set_justify(gtk::Justification::Left);
+    let label_port = Label::new(Some("port:"));
+    label_port.set_justify(gtk::Justification::Left);
+    let label_url = Label::new(Some("url"));
+    label_url.set_justify(gtk::Justification::Left);
+    label_url.set_max_width_chars(10);
+    label_url.set_line_wrap(true);
+    //label_url.set_wrap(true);
     let v_box = gtk::Box::new(gtk::Orientation::Vertical, 10);
+    let h_box = gtk::Box::new(gtk::Orientation::Vertical, 10);
+    h_box.pack_start(&label_func, false,true,0);
+    //h_box.pack_start(child, expand, fill, padding)
+    h_box.pack_start(&label_add, false,true,0);
+    h_box.pack_start(&label_port, false,true,0);
+    h_box.pack_start(&label_url, false,true,0);
+    h_box.pack_start(&label, true,true,0);
     let button_box = gtk::ButtonBox::new(gtk::Orientation::Horizontal);
     button_box.set_layout(gtk::ButtonBoxStyle::End);
     let button1 = gtk::Button::with_label("new");
@@ -195,7 +218,7 @@ fn build_ui(application: &gtk::Application) {
     button_box.pack_start(&button2, false, false, 0);
 
     v_box.pack_start(&button_box, false, true, 0);
-    v_box.pack_start(&label, true, true, 0);
+    v_box.pack_start(&h_box, true, true, 0);
 
     let tree = create_and_setup_view();
 
@@ -220,10 +243,15 @@ fn build_ui(application: &gtk::Application) {
     vertical_layout.pack_start(&v_box, true, true, 0);
     // Iter 可以获取内容，但是active可以获取目录位置
     // 准确来说，active需要点两次
+    // 移动到global里去，主要是为了方便改写和访问，这样变量就不会首主进程影响
     GLOBAL.with(move |global| {
         *global.borrow_mut() = Some(Ui {
             running_button: button1,
             ui_label: label,
+            func_label : label_func,
+            add_label: label_add,
+            port_label: label_port,
+            url_label: label_url,
         });
         if let Some(ref ui) = *global.borrow() {
             ui.running_button.connect_clicked(move |s| {
@@ -286,6 +314,29 @@ fn build_ui(application: &gtk::Application) {
                             .expect("Treeview selection, column 0"),
                     ));
                     let local2 = model.value(&iter, 0).get::<u32>().expect("1") as i32;
+                    GLOBALURL.with(move |global|{
+                        if let Some(ref url) = *global.borrow() {
+                            ui.func_label.set_text(&format!(
+                                "func: {}",
+                                url[local2 as usize].func.as_str()
+                            ));
+                            ui.add_label.set_text(&format!(
+                                "add: {}",
+                                url[local2 as usize].add.as_str()
+                            ));
+                            ui.port_label.set_text(&format!(
+                                "port: {}",
+                                url[local2 as usize].port.as_str()
+                            ));
+                            ui.url_label.set_text(&format!(
+                                "url: {}",
+                                url[local2 as usize].ps.as_str()
+                            ));
+                            ui.url_label.set_max_width_chars(10);
+                            ui.url_label.set_line_wrap(true);
+
+                        }
+                    });
                     GLOBAL2.with(move |global2| {
                         let locall = *global2.borrow();
                         let running = locall.is_running;
