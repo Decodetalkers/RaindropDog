@@ -12,7 +12,8 @@ use spider::{ascii_to_char, get_the_key};
 use std::cell::RefCell;
 #[derive(Copy, Clone)]
 struct Active {
-    is_running: bool,
+    is_running: i32,
+    local:i32,
 }
 
 struct Ui {
@@ -46,16 +47,20 @@ thread_local!(
     static GLOBAL: RefCell<Option<Ui>> = RefCell::new(None)
 );
 thread_local!(
-    static GLOBAL2: RefCell<Option<Active>> = RefCell::new(None)
+    static GLOBAL2: RefCell<Active> = RefCell::new(
+        Active{
+            is_running:-1,
+            local:0,
+        });
 );
 
 fn create_and_fill_model(model: &ListStore, temp: Vec<String>) {
     fn ascii_to_string(code: Vec<u8>) -> String {
-        let mut test: String = String::new();
+        let mut output: String = String::new();
         for cor in code.into_iter() {
-            test.push(ascii_to_char(cor));
+            output.push(ascii_to_char(cor));
         }
-        test
+        output
     }
     fn type_of_url(url: String) -> Tcp {
         for pair in url.chars() {
@@ -125,9 +130,6 @@ fn create_and_fill_model(model: &ListStore, temp: Vec<String>) {
             }
         }
     }
-    // Creation of a model with two rows.
-    //let model = ListStore::new(&[u32::static_type(),String::static_type()]);
-    // Filling up the tree view.
     let future = get_the_key(temp);
     let output: Vec<Vec<String>> = block_on(future).unwrap();
     let mut input: Vec<String> = vec![];
@@ -145,9 +147,8 @@ fn create_and_fill_model(model: &ListStore, temp: Vec<String>) {
         *global.borrow_mut() = Some(urls);
     });
     let entries = &input;
-    //let entries = &["Michel", "Sara", "Liam", "Zelda", "Neo", "Octopus master","Michel", "Sara", "Liam", "Zelda", "Neo", "Octopus master"];
     for (i, entry) in entries.iter().enumerate() {
-        model.insert_with_values(None, &[(0, &(i as u32 + 1)), (1, &entry)]);
+        model.insert_with_values(None, &[(0, &(i as u32 )), (1, &entry)]);
     }
     //model
 }
@@ -189,10 +190,6 @@ fn build_ui(application: &gtk::Application) {
     let button_box = gtk::ButtonBox::new(gtk::Orientation::Horizontal);
     button_box.set_layout(gtk::ButtonBoxStyle::End);
     let button1 = gtk::Button::with_label("new");
-    let active: bool = false;
-    GLOBAL2.with(move |global| {
-        *global.borrow_mut() = Some(Active { is_running: active });
-    });
     let button2 = gtk::Button::with_label("copy");
 
     button_box.pack_start(&button1, false, false, 0);
@@ -215,7 +212,6 @@ fn build_ui(application: &gtk::Application) {
     // Setting the model into the view.
     tree.set_model(Some(&model));
     let scroll = gtk::ScrolledWindow::new(gtk::NONE_ADJUSTMENT, gtk::NONE_ADJUSTMENT);
-    //Some(&gtk::Adjustment::new(1000000.0, 800000.0,600.0,70000000000.0,60000000.0,6000.0)));
     scroll.add(&tree);
     //设置最小的大小
     scroll.set_width_request(300);
@@ -223,13 +219,6 @@ fn build_ui(application: &gtk::Application) {
     //禁止水平变化
     vertical_layout.pack_start(&scroll, false, true, 0);
     vertical_layout.pack_start(&v_box, true, true, 0);
-    // Adding the view to the layout.
-    //vertical_layout.add(&scroll);
-    // Same goes for the label.
-    //vertical_layout.add(&label);
-
-    // The closure responds to selection changes by connection to "::cursor-changed" signal,
-    // that gets emitted when the cursor moves (focus changes).
     // Iter 可以获取内容，但是active可以获取目录位置
     // 准确来说，active需要点两次
     GLOBAL.with(move |global| {
@@ -240,36 +229,48 @@ fn build_ui(application: &gtk::Application) {
         if let Some(ref ui) = *global.borrow() {
             ui.running_button.connect_clicked(move |s| {
                 GLOBAL2.with(move |global2| {
-                    let mut test: bool = true;
-                    if let Some(ref active) = *global2.borrow_mut() {
-                        test = !active.is_running;
-                        if active.is_running {
-                            s.set_label("stop");
-                        } else {
-                            s.set_label("start");
-                        }
+                    let locall = *global2.borrow();
+                    let temp = locall.local.clone();
+                    if locall.is_running == locall.local {
+                        s.set_label("start");
+                        *global2.borrow_mut() = 
+                            Active{
+                                is_running:-1,
+                                local : temp,
+                            };
+                    } else {
+                        s.set_label("stop");
+                        //println!("{},{}",locall.is_running,locall.local);
+                        *global2.borrow_mut() = 
+                            Active{
+                                is_running:temp.clone(),
+                                local : temp,
+                            };
+
                     }
-                    *global2.borrow_mut() = Some(Active { is_running: test });
                 });
             });
         }
     });
+    //active时候更改label
     tree.connect_row_activated(move |_, path, _column| {
         GLOBAL.with(move |global| {
             if let Some(ref ui) = *global.borrow() {
-                ui.ui_label.set_text(&format!("index{}", path.indices()[0]))
+                ui.ui_label.set_text(&format!("index{}", path.indices()[0]));
+                GLOBAL2.with(move |global2|{
+                    //let locall = *global2.borrow();
+                    *global2.borrow_mut() = 
+                            Active{
+                                is_running:path.indices()[0],
+                                local : path.indices()[0],
+                            };
+                    ui.running_button.set_label("stop");
+                });
+                    
             }
         });
-        //println!("{}",path.indices()[0]);
-        //let real_path = sortable_store
-        //    .convert_path_to_child_path(path)
-        //    .expect("Sorted path does not correspond to real path");
-        //println!(
-        //   "Clicked on sorted: {:?}, real: {:?}",
-        //    path.indices(),
-        //    real_path.indices()
-        //);
     });
+    // cursor 聚焦时候就更改
     tree.connect_cursor_changed(move |tree_view| {
         GLOBAL.with(move |global| {
             if let Some(ref ui) = *global.borrow() {
@@ -290,11 +291,27 @@ fn build_ui(application: &gtk::Application) {
                             .get::<u32>()
                             .expect("Treeview selection, column 0"),
                     ));
-                }
-            }
+                    let local2 = model.value(&iter,0).get::<u32>().expect("1") as i32;
+                    GLOBAL2.with(move |global2|{
+                        let locall = *global2.borrow();
+                        let running  = locall.is_running.clone();
+                        *global2.borrow_mut() = 
+                            Active{
+                                is_running:running,
+                                local : local2,
+                            };
+                        //locall.local = local;
+                        if local2 != running{
+                        //locall.is_running = path.indices()[0];
+                            ui.running_button.set_label("start");
+                        } else {
+                            ui.running_button.set_label("stop");
+                        }
+                    });
+
+                }}
         });
     });
-
     // Adding the layout to the window.
     window.add(&vertical_layout);
 
