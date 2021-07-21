@@ -2,16 +2,6 @@ mod multi;
 mod spider;
 use futures::executor::block_on;
 use gtk::prelude::*;
-use std::{
-    io::prelude::*,
-    env,
-    fs::{
-        self,
-        File,
-    },
-    path::Path,
-    cell::RefCell,
-};
 use gtk::{
     ApplicationWindow, CellRendererText, Label, ListStore, Orientation, TreeView, TreeViewColumn,
     WindowPosition,
@@ -19,6 +9,13 @@ use gtk::{
 use serde_json::Result;
 use serde_json::Value;
 use spider::{ascii_to_char, get_the_key};
+use std::{
+    cell::RefCell,
+    env,
+    fs::{self, File},
+    io::prelude::*,
+    path::Path,
+};
 //use std::cell::RefCell;
 #[derive(Copy, Clone)]
 struct Active {
@@ -55,7 +52,7 @@ struct Urls {
     typpe: String,
 }
 
-thread_local! (
+thread_local!(
     static GLOBALURL: RefCell<Option<Vec<Urls>>> = RefCell::new(None);
     static GLOBAL: RefCell<Option<Ui>> = RefCell::new(None);
     static GLOBAL2: RefCell<Active> = RefCell::new(Active {
@@ -67,7 +64,7 @@ fn create_storage_before() {
     let home = env::var("HOME").unwrap();
     fs::create_dir_all(home + "/.config/gv2ray").unwrap();
 }
-fn create_and_fill_model_before(model: &ListStore){
+fn create_and_fill_model_before(model: &ListStore) {
     create_storage_before();
     let home = env::var("HOME").unwrap();
     let location = home + "/.config/gv2ray/storage.json";
@@ -132,7 +129,6 @@ fn create_and_fill_model_before(model: &ListStore){
             }
         }
     }
-
 }
 fn create_and_fill_model(model: &ListStore, temp: Vec<String>) {
     fn ascii_to_string(code: Vec<u8>) -> String {
@@ -226,8 +222,8 @@ fn create_and_fill_model(model: &ListStore, temp: Vec<String>) {
             //let temp = pair2.clone();
             input.push(temp);
             storge.push_str(
-                        format!(
-                            "{{
+                format!(
+                    "{{
     \"func\":{},
     \"url\":\"{}\",
     \"add\":{},
@@ -241,23 +237,22 @@ fn create_and_fill_model(model: &ListStore, temp: Vec<String>) {
     \"tls\":{},
     \"type\":{}
 }},\n",
-                            url_local.func,
-                            url_local.urls,
-                            url_local.add,
-                            url_local.aid,
-                            url_local.host,
-                            url_local.id,
-                            url_local.net,
-                            url_local.path,
-                            url_local.port,
-                            url_local.ps,
-                            url_local.tls,
-                            url_local.typpe
-                        )
-                        .as_str(),
-                    );
+                    url_local.func,
+                    url_local.urls,
+                    url_local.add,
+                    url_local.aid,
+                    url_local.host,
+                    url_local.id,
+                    url_local.net,
+                    url_local.path,
+                    url_local.port,
+                    url_local.ps,
+                    url_local.tls,
+                    url_local.typpe
+                )
+                .as_str(),
+            );
         }
-
     }
     storge.pop();
     storge.pop();
@@ -334,12 +329,12 @@ fn build_ui(application: &gtk::Application) {
     //label_url.set_wrap(true);
     let v_box = gtk::Box::new(gtk::Orientation::Vertical, 10);
     let h_box = gtk::Box::new(gtk::Orientation::Vertical, 10);
-    h_box.pack_start(&label_func, false,true,0);
+    h_box.pack_start(&label_func, false, true, 0);
     //h_box.pack_start(child, expand, fill, padding)
-    h_box.pack_start(&label_add, false,true,0);
-    h_box.pack_start(&label_port, false,true,0);
-    h_box.pack_start(&label_url, false,true,0);
-    h_box.pack_start(&label, true,true,0);
+    h_box.pack_start(&label_add, false, true, 0);
+    h_box.pack_start(&label_port, false, true, 0);
+    h_box.pack_start(&label_url, false, true, 0);
+    h_box.pack_start(&label, true, true, 0);
     let button_box = gtk::ButtonBox::new(gtk::Orientation::Horizontal);
     button_box.set_layout(gtk::ButtonBoxStyle::End);
     let button1 = gtk::Button::with_label("new");
@@ -379,7 +374,7 @@ fn build_ui(application: &gtk::Application) {
         *global.borrow_mut() = Some(Ui {
             running_button: button1,
             ui_label: label,
-            func_label : label_func,
+            func_label: label_func,
             add_label: label_add,
             port_label: label_port,
             url_label: label_url,
@@ -445,27 +440,18 @@ fn build_ui(application: &gtk::Application) {
                             .expect("Treeview selection, column 0"),
                     ));
                     let local2 = model.value(&iter, 0).get::<u32>().expect("1") as i32;
-                    GLOBALURL.with(move |global|{
+                    GLOBALURL.with(move |global| {
                         if let Some(ref url) = *global.borrow() {
-                            ui.func_label.set_text(&format!(
-                                "func: {}",
-                                url[local2 as usize].func.as_str()
-                            ));
-                            ui.add_label.set_text(&format!(
-                                "add: {}",
-                                url[local2 as usize].add.as_str()
-                            ));
-                            ui.port_label.set_text(&format!(
-                                "port: {}",
-                                url[local2 as usize].port.as_str()
-                            ));
-                            ui.url_label.set_text(&format!(
-                                "url: {}",
-                                url[local2 as usize].ps.as_str()
-                            ));
+                            ui.func_label
+                                .set_text(&format!("func: {}", url[local2 as usize].func.as_str()));
+                            ui.add_label
+                                .set_text(&format!("add: {}", url[local2 as usize].add.as_str()));
+                            ui.port_label
+                                .set_text(&format!("port: {}", url[local2 as usize].port.as_str()));
+                            ui.url_label
+                                .set_text(&format!("url: {}", url[local2 as usize].ps.as_str()));
                             ui.url_label.set_max_width_chars(10);
                             ui.url_label.set_line_wrap(true);
-
                         }
                     });
                     GLOBAL2.with(move |global2| {
