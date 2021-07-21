@@ -2,6 +2,16 @@ mod multi;
 mod spider;
 use futures::executor::block_on;
 use gtk::prelude::*;
+use std::{
+    io::prelude::*,
+    env,
+    fs::{
+        self,
+        File,
+    },
+    path::Path,
+    cell::RefCell,
+};
 use gtk::{
     ApplicationWindow, CellRendererText, Label, ListStore, Orientation, TreeView, TreeViewColumn,
     WindowPosition,
@@ -9,7 +19,7 @@ use gtk::{
 use serde_json::Result;
 use serde_json::Value;
 use spider::{ascii_to_char, get_the_key};
-use std::cell::RefCell;
+//use std::cell::RefCell;
 #[derive(Copy, Clone)]
 struct Active {
     is_running: i32,
@@ -46,18 +56,84 @@ struct Urls {
 }
 
 thread_local! (
-    static GLOBALURL: RefCell<Option<Vec<Urls>>> = RefCell::new(None)
-);
-thread_local!(
-    static GLOBAL: RefCell<Option<Ui>> = RefCell::new(None)
-);
-thread_local!(
+    static GLOBALURL: RefCell<Option<Vec<Urls>>> = RefCell::new(None);
+    static GLOBAL: RefCell<Option<Ui>> = RefCell::new(None);
     static GLOBAL2: RefCell<Active> = RefCell::new(Active {
         is_running: -1,
         local: 0,
     });
 );
+fn create_storage_before() {
+    let home = env::var("HOME").unwrap();
+    fs::create_dir_all(home + "/.config/gv2ray").unwrap();
+}
+fn create_and_fill_model_before(model: &ListStore){
+    create_storage_before();
+    let home = env::var("HOME").unwrap();
+    let location = home + "/.config/gv2ray/storage.json";
+    let path = Path::new(location.as_str());
+    //let display = path.display();
+    let mut file = match File::open(&path) {
+        // `io::Error` 的 `description` 方法返回一个描述错误的字符串。
+        Err(_) => {
+            let path2 = Path::new(location.as_str());
+            let display2 = path2.display();
+            let mut file2 = match File::create(&path2) {
+                Err(why) => panic!("couldn't create {}: {}", display2, why.to_string()),
+                Ok(file2) => file2,
+            };
+            let mut storge2: String = String::new();
+            storge2.push_str("[]");
+            // 将 `LOREM_IPSUM` 字符串写进 `file`，返回 `io::Result<()>`
+            if let Err(why) = file2.write_all(storge2.as_bytes()) {
+                panic!("couldn't write to {}: {}", display2, why.to_string())
+            }
+            let path3 = Path::new(location.as_str());
+            File::open(&path3).unwrap()
+        }
+        Ok(file) => file,
+    };
+    let mut ss = String::new();
+    match file.read_to_string(&mut ss) {
+        Err(_) => {}
+        Ok(_) => {
+            let v: Value = serde_json::from_str(ss.as_str()).unwrap();
+            let mut index = 0;
+            let mut input: Vec<String> = vec![];
+            let mut urls: Vec<Urls> = vec![];
+            while v[index] != Value::Null {
+                let the_url = v[index]["url"].to_string();
+                let lenghth = the_url.len();
+                let instore = &the_url[1..lenghth - 1];
+                let url = Urls {
+                    urls: instore.to_string(),
+                    func: v[index]["func"].to_string(),
+                    add: v[index]["add"].to_string(),
+                    aid: v[index]["aid"].to_string(),
+                    host: v[index]["host"].to_string(),
+                    id: v[index]["id"].to_string(),
+                    net: v[index]["net"].to_string(),
+                    path: v[index]["path"].to_string(),
+                    port: v[index]["port"].to_string(),
+                    ps: v[index]["ps"].to_string(),
+                    tls: v[index]["tls"].to_string(),
+                    typpe: v[index]["type"].to_string(),
+                };
+                input.push(v[index]["ps"].to_string());
+                urls.push(url);
+                index += 1;
+            }
+            GLOBALURL.with(move |global| {
+                *global.borrow_mut() = Some(urls);
+            });
+            let entries = &input;
+            for (i, entry) in entries.iter().enumerate() {
+                model.insert_with_values(None, &[(0, &(i as u32)), (1, &entry)]);
+            }
+        }
+    }
 
+}
 fn create_and_fill_model(model: &ListStore, temp: Vec<String>) {
     fn ascii_to_string(code: Vec<u8>) -> String {
         let mut output: String = String::new();
@@ -222,9 +298,9 @@ fn build_ui(application: &gtk::Application) {
 
     let tree = create_and_setup_view();
 
-    let temp: Vec<String> = vec![];
+    //let temp: Vec<String> = vec![];
     let model = ListStore::new(&[u32::static_type(), String::static_type()]);
-    create_and_fill_model(&model, temp);
+    create_and_fill_model_before(&model);
     button2.connect_clicked(
         glib::clone!(@weak model,@weak application,@weak window => move |_|{
         multi::create_sub_window(&application, "input urls",create_and_fill_model,&model,&window);
