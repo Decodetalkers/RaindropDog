@@ -13,7 +13,7 @@ use std::cell::RefCell;
 #[derive(Copy, Clone)]
 struct Active {
     is_running: i32,
-    local:i32,
+    local: i32,
 }
 
 struct Ui {
@@ -47,11 +47,10 @@ thread_local!(
     static GLOBAL: RefCell<Option<Ui>> = RefCell::new(None)
 );
 thread_local!(
-    static GLOBAL2: RefCell<Active> = RefCell::new(
-        Active{
-            is_running:-1,
-            local:0,
-        });
+    static GLOBAL2: RefCell<Active> = RefCell::new(Active {
+        is_running: -1,
+        local: 0,
+    });
 );
 
 fn create_and_fill_model(model: &ListStore, temp: Vec<String>) {
@@ -148,7 +147,7 @@ fn create_and_fill_model(model: &ListStore, temp: Vec<String>) {
     });
     let entries = &input;
     for (i, entry) in entries.iter().enumerate() {
-        model.insert_with_values(None, &[(0, &(i as u32 )), (1, &entry)]);
+        model.insert_with_values(None, &[(0, &(i as u32)), (1, &entry)]);
     }
     //model
 }
@@ -230,23 +229,20 @@ fn build_ui(application: &gtk::Application) {
             ui.running_button.connect_clicked(move |s| {
                 GLOBAL2.with(move |global2| {
                     let locall = *global2.borrow();
-                    let temp = locall.local.clone();
+                    let temp = locall.local;
                     if locall.is_running == locall.local {
                         s.set_label("start");
-                        *global2.borrow_mut() = 
-                            Active{
-                                is_running:-1,
-                                local : temp,
-                            };
+                        *global2.borrow_mut() = Active {
+                            is_running: -1,
+                            local: temp,
+                        };
                     } else {
                         s.set_label("stop");
                         //println!("{},{}",locall.is_running,locall.local);
-                        *global2.borrow_mut() = 
-                            Active{
-                                is_running:temp.clone(),
-                                local : temp,
-                            };
-
+                        *global2.borrow_mut() = Active {
+                            is_running: temp,
+                            local: temp,
+                        };
                     }
                 });
             });
@@ -257,16 +253,14 @@ fn build_ui(application: &gtk::Application) {
         GLOBAL.with(move |global| {
             if let Some(ref ui) = *global.borrow() {
                 ui.ui_label.set_text(&format!("index{}", path.indices()[0]));
-                GLOBAL2.with(move |global2|{
+                GLOBAL2.with(move |global2| {
                     //let locall = *global2.borrow();
-                    *global2.borrow_mut() = 
-                            Active{
-                                is_running:path.indices()[0],
-                                local : path.indices()[0],
-                            };
+                    *global2.borrow_mut() = Active {
+                        is_running: path.indices()[0],
+                        local: path.indices()[0],
+                    };
                     ui.running_button.set_label("stop");
                 });
-                    
             }
         });
     });
@@ -291,25 +285,24 @@ fn build_ui(application: &gtk::Application) {
                             .get::<u32>()
                             .expect("Treeview selection, column 0"),
                     ));
-                    let local2 = model.value(&iter,0).get::<u32>().expect("1") as i32;
-                    GLOBAL2.with(move |global2|{
+                    let local2 = model.value(&iter, 0).get::<u32>().expect("1") as i32;
+                    GLOBAL2.with(move |global2| {
                         let locall = *global2.borrow();
-                        let running  = locall.is_running.clone();
-                        *global2.borrow_mut() = 
-                            Active{
-                                is_running:running,
-                                local : local2,
-                            };
+                        let running = locall.is_running;
+                        *global2.borrow_mut() = Active {
+                            is_running: running,
+                            local: local2,
+                        };
                         //locall.local = local;
-                        if local2 != running{
-                        //locall.is_running = path.indices()[0];
+                        if local2 != running {
+                            //locall.is_running = path.indices()[0];
                             ui.running_button.set_label("start");
                         } else {
                             ui.running_button.set_label("stop");
                         }
                     });
-
-                }}
+                }
+            }
         });
     });
     // Adding the layout to the window.
