@@ -214,14 +214,69 @@ fn create_and_fill_model(model: &ListStore, temp: Vec<String>) {
     let output: Vec<Vec<String>> = block_on(future).unwrap();
     let mut input: Vec<String> = vec![];
     let mut urls: Vec<Urls> = vec![];
+    let mut storge: String = String::new();
+    storge.push('[');
+    storge.push('\n');
+
     for pair in output.into_iter() {
         for pair2 in pair.into_iter() {
             let url_local = get_the_url(pair2);
             let temp = url_local.ps.clone();
-            urls.push(url_local);
+            urls.push(url_local.clone());
             //let temp = pair2.clone();
             input.push(temp);
+            storge.push_str(
+                        format!(
+                            "{{
+    \"func\":{},
+    \"url\":\"{}\",
+    \"add\":{},
+    \"aid\":{},
+    \"host\":{},
+    \"id\":{},
+    \"net\":{},
+    \"path\":{},
+    \"port\":{},
+    \"ps\":{},
+    \"tls\":{},
+    \"type\":{}
+}},\n",
+                            url_local.func,
+                            url_local.urls,
+                            url_local.add,
+                            url_local.aid,
+                            url_local.host,
+                            url_local.id,
+                            url_local.net,
+                            url_local.path,
+                            url_local.port,
+                            url_local.ps,
+                            url_local.tls,
+                            url_local.typpe
+                        )
+                        .as_str(),
+                    );
         }
+
+    }
+    storge.pop();
+    storge.pop();
+    storge.push('\n');
+    storge.push(']');
+    let home = env::var("HOME").unwrap();
+    let location = home + "/.config/gv2ray/storage.json";
+    let path2 = Path::new(location.as_str());
+    //let display = path.display();
+    //let path2 = Path::new("storage.json");
+    let display2 = path2.display();
+    let mut file2 = match File::create(&path2) {
+        Err(why) => panic!("couldn't create {}: {}", display2, why.to_string()),
+        Ok(file2) => file2,
+    };
+
+    // 将 `LOREM_IPSUM` 字符串写进 `file`，返回 `io::Result<()>`
+    if let Err(why) = file2.write_all(storge.as_bytes()) {
+        panic!("couldn't write to {}: {}", display2, why.to_string())
     }
     GLOBALURL.with(move |global| {
         *global.borrow_mut() = Some(urls);
@@ -288,7 +343,7 @@ fn build_ui(application: &gtk::Application) {
     let button_box = gtk::ButtonBox::new(gtk::Orientation::Horizontal);
     button_box.set_layout(gtk::ButtonBoxStyle::End);
     let button1 = gtk::Button::with_label("new");
-    let button2 = gtk::Button::with_label("copy");
+    let button2 = gtk::Button::with_label("edit");
 
     button_box.pack_start(&button1, false, false, 0);
     button_box.pack_start(&button2, false, false, 0);
