@@ -24,7 +24,7 @@ pub fn create_sub_window(
     boxs.pack_start(&urls_input, true, false, 0);
     boxs.pack_start(&button_box, false, false, 0);
     button.connect_clicked(glib::clone!(@weak model,@weak urls_input =>move |_|{
-            model.clear();
+            //model.clear();
             let input: String = urls_input.text().to_string();
             let temp : Vec<String> = vec![input];
             func(&model, temp);

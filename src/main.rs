@@ -26,6 +26,7 @@ struct Active {
 
 struct Ui {
     running_button: gtk::Button,
+    reload_button: gtk::Button,
     ui_label: gtk::Label,
     func_label: gtk::Label,
     add_label: gtk::Label,
@@ -250,7 +251,7 @@ fn run(name: &Urls) {
     }
     Command::new(content)
         .arg("-config")
-        .arg(home2.clone() + "/.config/gv2ray/running.json")
+        .arg(home2 + "/.config/gv2ray/running.json")
         .spawn()
         .expect("failed");
 
@@ -271,6 +272,7 @@ fn create_storage_before() {
     fs::create_dir_all(home + "/.config/gv2ray").unwrap();
 }
 fn create_and_fill_model_before(model: &ListStore) {
+    model.clear();
     create_storage_before();
     let home = env::var("HOME").unwrap();
     let location = home + "/.config/gv2ray/storage.json";
@@ -412,6 +414,8 @@ fn create_and_fill_model(model: &ListStore, temp: Vec<String>) {
             }
         }
     }
+    create_storage_before();
+    model.clear();
     let future = get_the_key(temp);
     let output: Vec<Vec<String>> = block_on(future).unwrap();
     let mut input: Vec<String> = vec![];
@@ -464,28 +468,45 @@ fn create_and_fill_model(model: &ListStore, temp: Vec<String>) {
     storge.pop();
     storge.push('\n');
     storge.push(']');
-    let home = env::var("HOME").unwrap();
-    let location = home + "/.config/gv2ray/storage.json";
-    let path2 = Path::new(location.as_str());
-    //let display = path.display();
-    //let path2 = Path::new("storage.json");
-    let display2 = path2.display();
-    let mut file2 = match File::create(&path2) {
-        Err(why) => panic!("couldn't create {}: {}", display2, why.to_string()),
-        Ok(file2) => file2,
-    };
+    //防止获取信息后覆盖，但是结果为空
+    if storge.len() > 10 {
+        let home = env::var("HOME").unwrap();
+        let location_back = home.clone() + "/.config/gv2ray/storage_back.json";
+        let back_path = Path::new(location_back.as_str());
+        if back_path.exists() && fs::remove_file(back_path).is_ok() {}
+        let location = home.clone() + "/.config/gv2ray/storage.json";
+        let location2 = location.clone();
+        let path2 = Path::new(location2.as_str());
+        if path2.exists() {
+            //if let Ok(_)=fs::copy(location, home+"/.config/gv2ray/storage_back.json"){};
+            if fs::copy(location, home + "/.config/gv2ray/storage_back.json").is_ok() {};
+            GLOBAL.with(move |global| {
+                if let Some(ref ui) = *global.borrow() {
+                    ui.reload_button.show();
+                    ui.reload_button.set_label("reload");
+                }
+            });
+        }
+        //let display = path.display();
+        //let path2 = Path::new("storage.json");
+        let display2 = path2.display();
+        let mut file2 = match File::create(&path2) {
+            Err(why) => panic!("couldn't create {}: {}", display2, why.to_string()),
+            Ok(file2) => file2,
+        };
 
-    // 将 `LOREM_IPSUM` 字符串写进 `file`，返回 `io::Result<()>`
-    if let Err(why) = file2.write_all(storge.as_bytes()) {
-        panic!("couldn't write to {}: {}", display2, why.to_string())
-    }
-    GLOBALURL.with(move |global| {
-        *global.borrow_mut() = Some(urls);
-    });
-    let entries = &input;
-    for (i, entry) in entries.iter().enumerate() {
-        model.insert_with_values(None, &[(0, &(i as u32)), (1, &entry)]);
-    }
+        // 将 `LOREM_IPSUM` 字符串写进 `file`，返回 `io::Result<()>`
+        if let Err(why) = file2.write_all(storge.as_bytes()) {
+            panic!("couldn't write to {}: {}", display2, why.to_string())
+        }
+        GLOBALURL.with(move |global| {
+            *global.borrow_mut() = Some(urls);
+        });
+        let entries = &input;
+        for (i, entry) in entries.iter().enumerate() {
+            model.insert_with_values(None, &[(0, &(i as u32)), (1, &entry)]);
+        }
+    };
     //model
 }
 
@@ -545,9 +566,20 @@ fn build_ui(application: &gtk::Application) {
     button_box.set_layout(gtk::ButtonBoxStyle::End);
     let button1 = gtk::Button::with_label("new");
     let button2 = gtk::Button::with_label("edit");
+    let button3 = gtk::Button::with_label("reload");
+    {
+        let home = env::var("HOME").unwrap();
+        let location = home + "/.config/gv2ray/storage_back.json";
+        let path2 = Path::new(location.as_str());
+        if !path2.exists() {
+            button3.set_label("None");
+            button3.set_visible(false);
+        }
+    }
 
     button_box.pack_start(&button1, false, false, 0);
     button_box.pack_start(&button2, false, false, 0);
+    button_box.pack_start(&button3, false, false, 0);
 
     v_box.pack_start(&button_box, false, true, 0);
     v_box.pack_start(&h_box, true, true, 0);
@@ -562,6 +594,29 @@ fn build_ui(application: &gtk::Application) {
         multi::create_sub_window(&application, "input urls",create_and_fill_model,&model,&window);
         }),
     );
+    //增加回退功能，如果节点不小心炸了，那么历史记录可以退回来
+    button3.connect_clicked(glib::clone!(@weak model => move |button|{
+        //button.set_visible(false);
+        //button.set_layout(Some())
+        let home = env::var("HOME").unwrap();
+        let location = home.clone() + "/.config/gv2ray/storage.json";
+        //let location2 = location.clone();
+        let path = Path::new(location.as_str());
+        if path.exists() && fs::remove_file(path).is_ok() {}
+
+        let location_back = home + "/.config/gv2ray/storage_back.json";
+        let back_path = Path::new(location_back.as_str());
+        //if back_path.exists(){
+        //    if fs::copy(location_back, location).is_ok(){};
+        //}
+        if ! (back_path.exists() && fs::copy(location_back, location).is_ok()) {
+            button.set_label("None");
+        }
+        create_and_fill_model_before(&model);
+
+
+    }));
+
     //let model = create_and_fill_model(temp);
     // Setting the model into the view.
     tree.set_model(Some(&model));
@@ -579,6 +634,7 @@ fn build_ui(application: &gtk::Application) {
     GLOBAL.with(move |global| {
         *global.borrow_mut() = Some(Ui {
             running_button: button1,
+            reload_button: button3,
             ui_label: label,
             func_label: label_func,
             add_label: label_add,
@@ -600,8 +656,6 @@ fn build_ui(application: &gtk::Application) {
                             .arg("v2ray")
                             .output()
                             .unwrap_or_else(|e| panic!("failed to execute process: {}", e));
-
-
                     } else {
                         s.set_label("stop");
                         //println!("{},{}",locall.is_running,locall.local);
@@ -609,8 +663,8 @@ fn build_ui(application: &gtk::Application) {
                             is_running: temp,
                             local: temp,
                         };
-                        GLOBALURL.with(|globalurl|{
-                            if let Some(ref url) = *globalurl.borrow(){
+                        GLOBALURL.with(|globalurl| {
+                            if let Some(ref url) = *globalurl.borrow() {
                                 run(&url[temp as usize]);
                             }
                         });
@@ -632,8 +686,8 @@ fn build_ui(application: &gtk::Application) {
                     };
                     ui.running_button.set_label("stop");
                 });
-                GLOBALURL.with(|globalurl|{
-                    if let Some(ref url) = *globalurl.borrow(){
+                GLOBALURL.with(|globalurl| {
+                    if let Some(ref url) = *globalurl.borrow() {
                         run(&url[path.indices()[0] as usize]);
                     }
                 });
