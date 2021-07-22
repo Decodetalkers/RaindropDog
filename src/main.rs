@@ -546,7 +546,7 @@ fn create_and_fill_model(model: &TreeStore, temp: Vec<String>) {
         });
         let entries = &input;
         for (i, entry) in entries.iter().enumerate() {
-            let iter = model.insert_with_values(None, None, &[(0, &(i as u32)), (1, &"chen")]);
+            let iter = model.insert_with_values(None, None, &[(0, &(i as u32)), (1, &"test")]);
             for (j, entry2) in entry.iter().enumerate() {
                 model.insert_with_values(Some(&iter), None, &[(0, &(j as u32)), (1, &entry2)]);
             }
