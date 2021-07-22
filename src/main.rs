@@ -53,9 +53,13 @@ struct Urls {
     tls: String,
     typpe: String,
 }
-
+//记录根节点的名字以及内容，为接下来存储多个信息做铺垫
+struct AllUrls {
+    name: String,
+    content: Vec<Urls>,
+}
 thread_local!(
-    static GLOBALURL: RefCell<Option<Vec<Urls>>> = RefCell::new(None);
+    static GLOBALURL: RefCell<Option<Vec<AllUrls>>> = RefCell::new(None);
     static GLOBAL: RefCell<Option<Ui>> = RefCell::new(None);
     static GLOBAL2: RefCell<Active> = RefCell::new(Active {
         is_running: (0, -1),
@@ -304,8 +308,9 @@ fn create_and_fill_model_before(model: &TreeStore) {
         Ok(_) => {
             let v: Value = serde_json::from_str(ss.as_str()).unwrap();
             let mut index = 0;
-            let mut urls: Vec<Urls> = vec![];
+            let mut all_urls: Vec<AllUrls> = vec![];
             while v[index] != Value::Null {
+                let mut urls: Vec<Urls> = vec![];
                 let mut index2 = 0;
                 let iter = model.insert_with_values(
                     None,
@@ -314,8 +319,8 @@ fn create_and_fill_model_before(model: &TreeStore) {
                 );
                 while v[index]["urls"][index2] != Value::Null {
                     let the_url = v[index]["urls"][index2]["url"].to_string();
-                    let lenghth = the_url.len();
-                    let instore = &the_url[1..lenghth - 1];
+                    let length = the_url.len();
+                    let instore = &the_url[1..length - 1];
                     let url = Urls {
                         urls: instore.to_string(),
                         func: v[index]["urls"][index2]["func"].to_string(),
@@ -342,9 +347,13 @@ fn create_and_fill_model_before(model: &TreeStore) {
                     index2 += 1;
                 }
                 index += 1;
+                all_urls.push(AllUrls {
+                    name: "test".to_string(),
+                    content: urls,
+                })
             }
             GLOBALURL.with(move |global| {
-                *global.borrow_mut() = Some(urls);
+                *global.borrow_mut() = Some(all_urls);
             });
             //let entries = &input;
             //for (i, entry) in entries.iter().enumerate() {
@@ -436,12 +445,13 @@ fn create_and_fill_model(model: &TreeStore, temp: Vec<String>) {
     let future = get_the_key(temp);
     let output: Vec<Vec<String>> = block_on(future).unwrap();
     let mut input: Vec<Vec<String>> = vec![];
-    let mut urls: Vec<Urls> = vec![];
+    let mut all_urls: Vec<AllUrls> = vec![];
     let mut storge: String = String::new();
     storge.push('[');
     storge.push('\n');
 
     for pair in output.into_iter() {
+        let mut urls: Vec<Urls> = vec![];
         storge.push_str(
             "{
     \"name\":\"test\",
@@ -456,8 +466,7 @@ fn create_and_fill_model(model: &TreeStore, temp: Vec<String>) {
             input_in.push(temp);
             storge.push_str(
                 format!(
-                    "
-    {{
+                    "   {{
         \"func\":{},
         \"url\":\"{}\",
         \"add\":{},
@@ -487,10 +496,14 @@ fn create_and_fill_model(model: &TreeStore, temp: Vec<String>) {
                 .as_str(),
             );
         }
+        all_urls.push(AllUrls {
+            name: "test".to_string(),
+            content: urls,
+        });
         storge.pop();
         storge.pop();
         storge.push('\n');
-        storge.push_str("]},\n");
+        storge.push_str("   ]\n},\n");
         input.push(input_in);
     }
     storge.pop();
@@ -529,7 +542,7 @@ fn create_and_fill_model(model: &TreeStore, temp: Vec<String>) {
             panic!("couldn't write to {}: {}", display2, why.to_string())
         }
         GLOBALURL.with(move |global| {
-            *global.borrow_mut() = Some(urls);
+            *global.borrow_mut() = Some(all_urls);
         });
         let entries = &input;
         for (i, entry) in entries.iter().enumerate() {
@@ -697,7 +710,7 @@ fn build_ui(application: &gtk::Application) {
                         };
                         GLOBALURL.with(|globalurl| {
                             if let Some(ref url) = *globalurl.borrow() {
-                                run(&url[temp.1 as usize]);
+                                run(&url[temp.0 as usize].content[temp.1 as usize]);
                             }
                         });
                     }
@@ -721,7 +734,8 @@ fn build_ui(application: &gtk::Application) {
                     });
                     GLOBALURL.with(|globalurl| {
                         if let Some(ref url) = *globalurl.borrow() {
-                            run(&url[path.indices()[1] as usize]);
+                            run(&url[path.indices()[0] as usize].content
+                                [path.indices()[1] as usize]);
                         }
                     });
                 }
@@ -756,19 +770,27 @@ fn build_ui(application: &gtk::Application) {
                             if let Some(ref url) = *global.borrow() {
                                 ui.func_label.set_text(&format!(
                                     "func: {}",
-                                    url[local2.1 as usize].func.as_str()
+                                    url[local2.0 as usize].content[local2.1 as usize]
+                                        .func
+                                        .as_str()
                                 ));
                                 ui.add_label.set_text(&format!(
                                     "add: {}",
-                                    url[local2.1 as usize].add.as_str()
+                                    url[local2.0 as usize].content[local2.1 as usize]
+                                        .add
+                                        .as_str()
                                 ));
                                 ui.port_label.set_text(&format!(
                                     "port: {}",
-                                    url[local2.1 as usize].port.as_str()
+                                    url[local2.0 as usize].content[local2.1 as usize]
+                                        .port
+                                        .as_str()
                                 ));
                                 ui.url_label.set_text(&format!(
                                     "url: {}",
-                                    url[local2.1 as usize].ps.as_str()
+                                    url[local2.0 as usize].content[local2.1 as usize]
+                                        .ps
+                                        .as_str()
                                 ));
                                 ui.url_label.set_max_width_chars(10);
                                 ui.url_label.set_line_wrap(true);
@@ -789,6 +811,15 @@ fn build_ui(application: &gtk::Application) {
                                 ui.running_button.set_label("stop");
                             }
                         });
+                    } else {
+                        GLOBALURL.with(move |globalurl| {
+                            if let Some(ref url) = *globalurl.borrow() {
+                                ui.ui_label.set_label(&format!(
+                                    "the name is{}",
+                                    url[path.indices()[0] as usize].name
+                                ));
+                            }
+                        })
                     }
                 }
             }
