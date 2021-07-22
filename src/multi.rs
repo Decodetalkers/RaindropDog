@@ -3,8 +3,8 @@ use gtk::prelude::*;
 pub fn create_sub_window(
     application: &gtk::Application,
     title: &str,
-    func: fn(&gtk::ListStore, Vec<String>),
-    model: &gtk::ListStore,
+    func: fn(&gtk::TreeStore, Vec<String>),
+    model: &gtk::TreeStore,
     mainwindow: &gtk::ApplicationWindow,
 ) {
     mainwindow.set_deletable(false);

@@ -3,7 +3,7 @@ mod spider;
 use futures::executor::block_on;
 use gtk::prelude::*;
 use gtk::{
-    ApplicationWindow, CellRendererText, Label, ListStore, Orientation, TreeView, TreeViewColumn,
+    ApplicationWindow, CellRendererText, Label, Orientation, TreeStore, TreeView, TreeViewColumn,
     WindowPosition,
 };
 use serde_json::Result;
@@ -20,8 +20,8 @@ use std::{
 //use std::cell::RefCell;
 #[derive(Copy, Clone)]
 struct Active {
-    is_running: i32,
-    local: i32,
+    is_running: (i32,i32),
+    local: (i32,i32),
 }
 
 struct Ui {
@@ -58,8 +58,8 @@ thread_local!(
     static GLOBALURL: RefCell<Option<Vec<Urls>>> = RefCell::new(None);
     static GLOBAL: RefCell<Option<Ui>> = RefCell::new(None);
     static GLOBAL2: RefCell<Active> = RefCell::new(Active {
-        is_running: -1,
-        local: 0,
+        is_running: (0,-1),
+        local: (0,0),
     });
 );
 fn run(name: &Urls) {
@@ -271,7 +271,7 @@ fn create_storage_before() {
     let home = env::var("HOME").unwrap();
     fs::create_dir_all(home + "/.config/gv2ray").unwrap();
 }
-fn create_and_fill_model_before(model: &ListStore) {
+fn create_and_fill_model_before(model: &TreeStore) {
     model.clear();
     create_storage_before();
     let home = env::var("HOME").unwrap();
@@ -304,41 +304,58 @@ fn create_and_fill_model_before(model: &ListStore) {
         Ok(_) => {
             let v: Value = serde_json::from_str(ss.as_str()).unwrap();
             let mut index = 0;
-            let mut input: Vec<String> = vec![];
             let mut urls: Vec<Urls> = vec![];
             while v[index] != Value::Null {
-                let the_url = v[index]["url"].to_string();
-                let lenghth = the_url.len();
-                let instore = &the_url[1..lenghth - 1];
-                let url = Urls {
-                    urls: instore.to_string(),
-                    func: v[index]["func"].to_string(),
-                    add: v[index]["add"].to_string(),
-                    aid: v[index]["aid"].to_string(),
-                    host: v[index]["host"].to_string(),
-                    id: v[index]["id"].to_string(),
-                    net: v[index]["net"].to_string(),
-                    path: v[index]["path"].to_string(),
-                    port: v[index]["port"].to_string(),
-                    ps: v[index]["ps"].to_string(),
-                    tls: v[index]["tls"].to_string(),
-                    typpe: v[index]["type"].to_string(),
-                };
-                input.push(v[index]["ps"].to_string());
-                urls.push(url);
+                let mut index2 = 0;
+                let iter = model.insert_with_values(
+                    None,
+                    None,
+                    &[(0, &(index as u32)), (1, &v[index]["name"].to_string())],
+                );
+                while v[index]["urls"][index2] != Value::Null {
+                    let the_url = v[index]["urls"][index2]["url"].to_string();
+                    let lenghth = the_url.len();
+                    let instore = &the_url[1..lenghth - 1];
+                    let url = Urls {
+                        urls: instore.to_string(),
+                        func: v[index]["urls"][index2]["func"].to_string(),
+                        add: v[index]["urls"][index2]["add"].to_string(),
+                        aid: v[index]["urls"][index2]["aid"].to_string(),
+                        host: v[index]["urls"][index2]["host"].to_string(),
+                        id: v[index]["urls"][index2]["id"].to_string(),
+                        net: v[index]["urls"][index2]["net"].to_string(),
+                        path: v[index]["urls"][index2]["path"].to_string(),
+                        port: v[index]["urls"][index2]["port"].to_string(),
+                        ps: v[index]["urls"][index2]["ps"].to_string(),
+                        tls: v[index]["urls"][index2]["tls"].to_string(),
+                        typpe: v[index]["urls"][index2]["type"].to_string(),
+                    };
+                    model.insert_with_values(
+                        Some(&iter),
+                        None,
+                        &[
+                            (0, &(index2 as u32)),
+                            (1, &v[index]["urls"][index2]["ps"].to_string()),
+                        ],
+                    );
+                    urls.push(url);
+                    index2 += 1;
+                }
                 index += 1;
             }
             GLOBALURL.with(move |global| {
                 *global.borrow_mut() = Some(urls);
             });
-            let entries = &input;
-            for (i, entry) in entries.iter().enumerate() {
-                model.insert_with_values(None, &[(0, &(i as u32)), (1, &entry)]);
-            }
+            //let entries = &input;
+            //for (i, entry) in entries.iter().enumerate() {
+            //    model.insert_with_values(None,None, &[(0, &(i as u32)), (1, &entry)]);
+            //}
         }
     }
 }
-fn create_and_fill_model(model: &ListStore, temp: Vec<String>) {
+
+// 生成tree
+fn create_and_fill_model(model: &TreeStore, temp: Vec<String>) {
     fn ascii_to_string(code: Vec<u8>) -> String {
         let mut output: String = String::new();
         for cor in code.into_iter() {
@@ -418,35 +435,41 @@ fn create_and_fill_model(model: &ListStore, temp: Vec<String>) {
     model.clear();
     let future = get_the_key(temp);
     let output: Vec<Vec<String>> = block_on(future).unwrap();
-    let mut input: Vec<String> = vec![];
+    let mut input: Vec<Vec<String>> = vec![];
     let mut urls: Vec<Urls> = vec![];
     let mut storge: String = String::new();
     storge.push('[');
     storge.push('\n');
 
     for pair in output.into_iter() {
+        storge.push_str("{
+    \"name\":\"test\",
+    \"urls\":["
+        );
+        let mut input_in:Vec<String> = vec![];
         for pair2 in pair.into_iter() {
             let url_local = get_the_url(pair2);
             let temp = url_local.ps.clone();
             urls.push(url_local.clone());
             //let temp = pair2.clone();
-            input.push(temp);
+            input_in.push(temp);
             storge.push_str(
                 format!(
-                    "{{
-    \"func\":{},
-    \"url\":\"{}\",
-    \"add\":{},
-    \"aid\":{},
-    \"host\":{},
-    \"id\":{},
-    \"net\":{},
-    \"path\":{},
-    \"port\":{},
-    \"ps\":{},
-    \"tls\":{},
-    \"type\":{}
-}},\n",
+                    "
+    {{
+        \"func\":{},
+        \"url\":\"{}\",
+        \"add\":{},
+        \"aid\":{},
+        \"host\":{},
+        \"id\":{},
+        \"net\":{},
+        \"path\":{},
+        \"port\":{},
+        \"ps\":{},
+        \"tls\":{},
+        \"type\":{}
+    }},\n",
                     url_local.func,
                     url_local.urls,
                     url_local.add,
@@ -463,6 +486,11 @@ fn create_and_fill_model(model: &ListStore, temp: Vec<String>) {
                 .as_str(),
             );
         }
+        storge.pop();
+        storge.pop();
+        storge.push('\n');
+        storge.push_str("]},\n");
+        input.push(input_in);
     }
     storge.pop();
     storge.pop();
@@ -504,7 +532,10 @@ fn create_and_fill_model(model: &ListStore, temp: Vec<String>) {
         });
         let entries = &input;
         for (i, entry) in entries.iter().enumerate() {
-            model.insert_with_values(None, &[(0, &(i as u32)), (1, &entry)]);
+            let iter = model.insert_with_values(None, None, &[(0, &(i as u32)), (1, &"chen")]);
+            for (j, entry2) in entry.iter().enumerate(){
+                model.insert_with_values(Some(&iter),None,&[(0,&(j as u32)),(1,&entry2)]);
+            }
         }
     };
     //model
@@ -587,7 +618,7 @@ fn build_ui(application: &gtk::Application) {
     let tree = create_and_setup_view();
 
     //let temp: Vec<String> = vec![];
-    let model = ListStore::new(&[u32::static_type(), String::static_type()]);
+    let model = TreeStore::new(&[u32::static_type(), String::static_type()]);
     create_and_fill_model_before(&model);
     button2.connect_clicked(
         glib::clone!(@weak model,@weak application,@weak window => move |_|{
@@ -649,7 +680,7 @@ fn build_ui(application: &gtk::Application) {
                     if locall.is_running == locall.local {
                         s.set_label("start");
                         *global2.borrow_mut() = Active {
-                            is_running: -1,
+                            is_running: (0,-1),
                             local: temp,
                         };
                         Command::new("pkill")
@@ -665,7 +696,7 @@ fn build_ui(application: &gtk::Application) {
                         };
                         GLOBALURL.with(|globalurl| {
                             if let Some(ref url) = *globalurl.borrow() {
-                                run(&url[temp as usize]);
+                                run(&url[temp.1 as usize]);
                             }
                         });
                     }
@@ -677,20 +708,22 @@ fn build_ui(application: &gtk::Application) {
     tree.connect_row_activated(move |_, path, _column| {
         GLOBAL.with(move |global| {
             if let Some(ref ui) = *global.borrow() {
-                ui.ui_label.set_text(&format!("index{}", path.indices()[0]));
-                GLOBAL2.with(move |global2| {
-                    //let locall = *global2.borrow();
-                    *global2.borrow_mut() = Active {
-                        is_running: path.indices()[0],
-                        local: path.indices()[0],
-                    };
-                    ui.running_button.set_label("stop");
-                });
-                GLOBALURL.with(|globalurl| {
-                    if let Some(ref url) = *globalurl.borrow() {
-                        run(&url[path.indices()[0] as usize]);
-                    }
-                });
+                if path.depth() > 1 {
+                    ui.ui_label.set_text(&format!("index{}", path.indices()[1]));
+                    GLOBAL2.with(move |global2| {
+                        //let locall = *global2.borrow();
+                        *global2.borrow_mut() = Active {
+                            is_running: (path.indices()[0],path.indices()[1]),
+                            local: (path.indices()[0],path.indices()[1]),
+                        };
+                        ui.running_button.set_label("stop");
+                    });
+                    GLOBALURL.with(|globalurl| {
+                        if let Some(ref url) = *globalurl.borrow() {
+                            run(&url[path.indices()[1] as usize]);
+                        }
+                    });
+                }
             }
         });
     });
@@ -704,47 +737,58 @@ fn build_ui(application: &gtk::Application) {
                     // iterator `iter`.
                     //
                     // The `get_value` method do the conversion between the gtk type and Rust.
-                    ui.ui_label.set_text(&format!(
-                        "Hello '{}' from rom {}",
-                        model
-                            .value(&iter, 1)
-                            .get::<String>()
-                            .expect("Treeview selection, column 1"),
-                        model
-                            .value(&iter, 0)
-                            .get::<u32>()
-                            .expect("Treeview selection, column 0"),
-                    ));
-                    let local2 = model.value(&iter, 0).get::<u32>().expect("1") as i32;
-                    GLOBALURL.with(move |global| {
-                        if let Some(ref url) = *global.borrow() {
-                            ui.func_label
-                                .set_text(&format!("func: {}", url[local2 as usize].func.as_str()));
-                            ui.add_label
-                                .set_text(&format!("add: {}", url[local2 as usize].add.as_str()));
-                            ui.port_label
-                                .set_text(&format!("port: {}", url[local2 as usize].port.as_str()));
-                            ui.url_label
-                                .set_text(&format!("url: {}", url[local2 as usize].ps.as_str()));
-                            ui.url_label.set_max_width_chars(10);
-                            ui.url_label.set_line_wrap(true);
-                        }
-                    });
-                    GLOBAL2.with(move |global2| {
-                        let locall = *global2.borrow();
-                        let running = locall.is_running;
-                        *global2.borrow_mut() = Active {
-                            is_running: running,
-                            local: local2,
-                        };
-                        //locall.local = local;
-                        if local2 != running {
-                            //locall.is_running = path.indices()[0];
-                            ui.running_button.set_label("start");
-                        } else {
-                            ui.running_button.set_label("stop");
-                        }
-                    });
+                    let path = model.path(&iter).expect("no");
+                    if path.depth() > 1 {
+                        ui.ui_label.set_text(&format!(
+                            "Hello '{}' from rom {}",
+                            model
+                                .value(&iter, 1)
+                                .get::<String>()
+                                .expect("Treeview selection, column 1"),
+                            model
+                                .value(&iter, 0)
+                                .get::<u32>()
+                                .expect("Treeview selection, column 0"),
+                        ));
+                        let local2 = (path.indices()[0],path.indices()[1]);
+                        GLOBALURL.with(move |global| {
+                            if let Some(ref url) = *global.borrow() {
+                                ui.func_label.set_text(&format!(
+                                    "func: {}",
+                                    url[local2.1 as usize].func.as_str()
+                                ));
+                                ui.add_label.set_text(&format!(
+                                    "add: {}",
+                                    url[local2.1 as usize].add.as_str()
+                                ));
+                                ui.port_label.set_text(&format!(
+                                    "port: {}",
+                                    url[local2.1 as usize].port.as_str()
+                                ));
+                                ui.url_label.set_text(&format!(
+                                    "url: {}",
+                                    url[local2.1 as usize].ps.as_str()
+                                ));
+                                ui.url_label.set_max_width_chars(10);
+                                ui.url_label.set_line_wrap(true);
+                            }
+                        });
+                        GLOBAL2.with(move |global2| {
+                            let locall = *global2.borrow();
+                            let running = locall.is_running;
+                            *global2.borrow_mut() = Active {
+                                is_running: running,
+                                local: local2,
+                            };
+                            //locall.local = local;
+                            if local2 != running {
+                                //locall.is_running = path.indices()[0];
+                                ui.running_button.set_label("start");
+                            } else {
+                                ui.running_button.set_label("stop");
+                            }
+                        });
+                    }
                 }
             }
         });
