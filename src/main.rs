@@ -513,7 +513,7 @@ fn create_and_setup_view() -> TreeView {
 fn build_ui(application: &gtk::Application) {
     let window = ApplicationWindow::new(application);
 
-    window.set_title("Simple TreeView example");
+    window.set_title("RainDropDog");
     window.set_position(WindowPosition::Center);
     window.set_size_request(300, 300);
 
