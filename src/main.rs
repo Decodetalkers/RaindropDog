@@ -20,8 +20,8 @@ use std::{
 //use std::cell::RefCell;
 #[derive(Copy, Clone)]
 struct Active {
-    is_running: (i32,i32),
-    local: (i32,i32),
+    is_running: (i32, i32),
+    local: (i32, i32),
 }
 
 struct Ui {
@@ -58,8 +58,8 @@ thread_local!(
     static GLOBALURL: RefCell<Option<Vec<Urls>>> = RefCell::new(None);
     static GLOBAL: RefCell<Option<Ui>> = RefCell::new(None);
     static GLOBAL2: RefCell<Active> = RefCell::new(Active {
-        is_running: (0,-1),
-        local: (0,0),
+        is_running: (0, -1),
+        local: (0, 0),
     });
 );
 fn run(name: &Urls) {
@@ -442,11 +442,12 @@ fn create_and_fill_model(model: &TreeStore, temp: Vec<String>) {
     storge.push('\n');
 
     for pair in output.into_iter() {
-        storge.push_str("{
+        storge.push_str(
+            "{
     \"name\":\"test\",
-    \"urls\":["
+    \"urls\":[",
         );
-        let mut input_in:Vec<String> = vec![];
+        let mut input_in: Vec<String> = vec![];
         for pair2 in pair.into_iter() {
             let url_local = get_the_url(pair2);
             let temp = url_local.ps.clone();
@@ -533,8 +534,8 @@ fn create_and_fill_model(model: &TreeStore, temp: Vec<String>) {
         let entries = &input;
         for (i, entry) in entries.iter().enumerate() {
             let iter = model.insert_with_values(None, None, &[(0, &(i as u32)), (1, &"chen")]);
-            for (j, entry2) in entry.iter().enumerate(){
-                model.insert_with_values(Some(&iter),None,&[(0,&(j as u32)),(1,&entry2)]);
+            for (j, entry2) in entry.iter().enumerate() {
+                model.insert_with_values(Some(&iter), None, &[(0, &(j as u32)), (1, &entry2)]);
             }
         }
     };
@@ -680,7 +681,7 @@ fn build_ui(application: &gtk::Application) {
                     if locall.is_running == locall.local {
                         s.set_label("start");
                         *global2.borrow_mut() = Active {
-                            is_running: (0,-1),
+                            is_running: (0, -1),
                             local: temp,
                         };
                         Command::new("pkill")
@@ -713,8 +714,8 @@ fn build_ui(application: &gtk::Application) {
                     GLOBAL2.with(move |global2| {
                         //let locall = *global2.borrow();
                         *global2.borrow_mut() = Active {
-                            is_running: (path.indices()[0],path.indices()[1]),
-                            local: (path.indices()[0],path.indices()[1]),
+                            is_running: (path.indices()[0], path.indices()[1]),
+                            local: (path.indices()[0], path.indices()[1]),
                         };
                         ui.running_button.set_label("stop");
                     });
@@ -750,7 +751,7 @@ fn build_ui(application: &gtk::Application) {
                                 .get::<u32>()
                                 .expect("Treeview selection, column 0"),
                         ));
-                        let local2 = (path.indices()[0],path.indices()[1]);
+                        let local2 = (path.indices()[0], path.indices()[1]);
                         GLOBALURL.with(move |global| {
                             if let Some(ref url) = *global.borrow() {
                                 ui.func_label.set_text(&format!(
