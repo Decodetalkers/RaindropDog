@@ -584,7 +584,9 @@ fn build_ui(application: &gtk::Application) {
     window.set_size_request(300, 300);
 
     // Creating a vertical layout to place both tree view and label in the window.
-    let vertical_layout = gtk::Box::new(Orientation::Horizontal, 0);
+    //
+    // 使用paned而不是box，为了分屏和调整大小
+    let vertical_layout = gtk::Paned::new(Orientation::Horizontal);
 
     // Creation of the label.
     let label = Label::new(None);
@@ -668,11 +670,12 @@ fn build_ui(application: &gtk::Application) {
     let scroll = gtk::ScrolledWindow::new(gtk::NONE_ADJUSTMENT, gtk::NONE_ADJUSTMENT);
     scroll.add(&tree);
     //设置最小的大小
-    scroll.set_width_request(300);
-    scroll.set_resize_mode(gtk::ResizeMode::Queue);
+    scroll.set_width_request(400);
+    //scroll.set_resize_mode(gtk::ResizeMode::Queue);
     //禁止水平变化
-    vertical_layout.pack_start(&scroll, false, true, 0);
-    vertical_layout.pack_start(&v_box, true, true, 0);
+    //左边加scroll，右边加v_box
+    vertical_layout.pack1(&scroll, false, true);
+    vertical_layout.pack2(&v_box, true, true);
     // Iter 可以获取内容，但是active可以获取目录位置
     // 准确来说，active需要点两次
     // 移动到global里去，主要是为了方便改写和访问，这样变量就不会首主进程影响
