@@ -1,5 +1,6 @@
 mod multi;
 mod spider;
+mod tool;
 use futures::executor::block_on;
 use gtk::prelude::*;
 use gtk::{
@@ -17,6 +18,7 @@ use std::{
     path::Path,
     process::Command,
 };
+use tool::Urls;
 //use std::cell::RefCell;
 #[derive(Copy, Clone)]
 struct Active {
@@ -37,22 +39,7 @@ enum Tcp {
     Ss,
     V2,
 }
-#[allow(dead_code)]
-#[derive(Clone)]
-struct Urls {
-    func: String,
-    urls: String,
-    add: String,
-    aid: String,
-    host: String,
-    id: String,
-    net: String,
-    path: String,
-    port: String,
-    ps: String,
-    tls: String,
-    typpe: String,
-}
+
 //记录根节点的名字以及内容，为接下来存储多个信息做铺垫
 struct AllUrls {
     name: String,
@@ -315,7 +302,7 @@ fn create_and_fill_model_before(model: &TreeStore) {
                 let iter = model.insert_with_values(
                     None,
                     None,
-                    &[(0, &(index as u32)), (1, &v[index]["name"].to_string())],
+                    &[(0, &(tool::remove_quotation(v[index]["name"].to_string())))],
                 );
                 while v[index]["urls"][index2] != Value::Null {
                     let the_url = v[index]["urls"][index2]["url"].to_string();
@@ -338,10 +325,10 @@ fn create_and_fill_model_before(model: &TreeStore) {
                     model.insert_with_values(
                         Some(&iter),
                         None,
-                        &[
-                            (0, &(index2 as u32)),
-                            (1, &v[index]["urls"][index2]["ps"].to_string()),
-                        ],
+                        &[(
+                            0,
+                            &(tool::remove_quotation(v[index]["urls"][index2]["ps"].to_string())),
+                        )],
                     );
                     urls.push(url);
                     index2 += 1;
@@ -545,10 +532,14 @@ fn create_and_fill_model(model: &TreeStore, temp: Vec<String>) {
             *global.borrow_mut() = Some(all_urls);
         });
         let entries = &input;
-        for (i, entry) in entries.iter().enumerate() {
-            let iter = model.insert_with_values(None, None, &[(0, &(i as u32)), (1, &"test")]);
-            for (j, entry2) in entry.iter().enumerate() {
-                model.insert_with_values(Some(&iter), None, &[(0, &(j as u32)), (1, &entry2)]);
+        for (_, entry) in entries.iter().enumerate() {
+            let iter = model.insert_with_values(None, None, &[(0, &("test".to_string()))]);
+            for (_, entry2) in entry.iter().enumerate() {
+                model.insert_with_values(
+                    Some(&iter),
+                    None,
+                    &[(0, &(tool::remove_quotation(entry2.to_string())))],
+                );
             }
         }
     };
@@ -571,8 +562,9 @@ fn create_and_setup_view() -> TreeView {
 
     tree.set_headers_visible(false);
     // Creating the two columns inside the view.
+    // 去除第二个数字的显示
     append_column(&tree, 0);
-    append_column(&tree, 1);
+    //append_column(&tree, 1);
     tree
 }
 
@@ -632,9 +624,8 @@ fn build_ui(application: &gtk::Application) {
     v_box.pack_start(&h_box, true, true, 0);
 
     let tree = create_and_setup_view();
-
     //let temp: Vec<String> = vec![];
-    let model = TreeStore::new(&[u32::static_type(), String::static_type()]);
+    let model = TreeStore::new(&[glib::Type::STRING]);
     create_and_fill_model_before(&model);
     button2.connect_clicked(
         glib::clone!(@weak model,@weak application,@weak window => move |_|{
@@ -758,41 +749,46 @@ fn build_ui(application: &gtk::Application) {
                     let path = model.path(&iter).expect("no");
                     if path.depth() > 1 {
                         ui.ui_label.set_text(&format!(
-                            "Hello '{}' from rom {}",
-                            model
-                                .value(&iter, 1)
-                                .get::<String>()
-                                .expect("Treeview selection, column 1"),
+                            "Hello {} ",
                             model
                                 .value(&iter, 0)
-                                .get::<u32>()
-                                .expect("Treeview selection, column 0"),
+                                .get::<String>()
+                                .expect("Treeview selection, column 1"),
                         ));
                         let local2 = (path.indices()[0], path.indices()[1]);
                         GLOBALURL.with(move |global| {
                             if let Some(ref url) = *global.borrow() {
                                 ui.func_label.set_text(&format!(
                                     "func: {}",
-                                    url[local2.0 as usize].content[local2.1 as usize]
-                                        .func
-                                        .as_str()
+                                    tool::remove_quotation(
+                                        url[local2.0 as usize].content[local2.1 as usize]
+                                            .func
+                                            .clone()
+                                    )
+                                    .as_str()
                                 ));
                                 ui.add_label.set_text(&format!(
                                     "add: {}",
-                                    url[local2.0 as usize].content[local2.1 as usize]
-                                        .add
-                                        .as_str()
+                                    tool::remove_quotation(
+                                        url[local2.0 as usize].content[local2.1 as usize]
+                                            .add
+                                            .clone()
+                                    )
+                                    .as_str()
                                 ));
                                 ui.port_label.set_text(&format!(
                                     "port: {}",
-                                    url[local2.0 as usize].content[local2.1 as usize]
-                                        .port
-                                        .as_str()
+                                    tool::remove_quotation(
+                                        url[local2.0 as usize].content[local2.1 as usize]
+                                            .port
+                                            .clone()
+                                    )
+                                    .as_str()
                                 ));
                                 ui.url_label.set_text(&format!(
                                     "url: {}",
                                     url[local2.0 as usize].content[local2.1 as usize]
-                                        .ps
+                                        .get_the_link()
                                         .as_str()
                                 ));
                                 ui.url_label.set_max_width_chars(10);
