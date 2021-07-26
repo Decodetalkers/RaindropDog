@@ -295,6 +295,8 @@ fn run(name: &Urls, text: &gtk::TextView) {
                     }
                 }
             }
+            //如果超时就杀死这个变量
+            drop(stream);
         })
         .expect("!thread");
     rx.attach(None, move |text| {
@@ -302,32 +304,11 @@ fn run(name: &Urls, text: &gtk::TextView) {
         text_buffer.set_text(&text);
         glib::Continue(true)
     });
-    //match output {
-    //    Some(ref mut out) =>{
-    //        let mut buf_string = String::new();
-    //        match out.read_to_string(&mut buf_string){
-    //            Ok(_) => text_buffer.set_text(&buf_string),
-    //            Err(_) => text_buffer.set_text("sss"),
-    //        }
-    //    },
-    //    None =>  text_buffer.set_text("vvv"),
-    //}
+
     GLOBALTHREAD.with(move |global| {
         *global.borrow_mut() = running;
     });
-    //text_buffer.set_text("sss");
 
-    //text_buffer.set_text(s);
-    //Command::new("nohup")
-    //    .arg(content)
-    //    .arg("-config")
-    //    .arg(home2.clone() + "/.config/tv2ray/running.json")
-    //    .arg(">")
-    //    .arg(home2 + "/.config/tv2ray/test.log")
-    //    .arg("2>&1")
-    //    .arg("&")
-    //    .spawn()
-    //    .expect("failed");
 }
 
 fn create_storage_before() {
