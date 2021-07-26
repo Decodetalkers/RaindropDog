@@ -18,6 +18,7 @@ use std::{
     path::Path,
     process::Command,
     thread,
+    sync::mpsc,
 };
 use tool::Urls;
 //use std::cell::RefCell;
@@ -54,17 +55,36 @@ thread_local! {
         is_running: (0, -1),
         local: (0, 0),
     });
-    static GLOBALTHREAD: RefCell<std::process::Child>=RefCell::new(
-        Command::new("ls")
-        .spawn()
-        .expect("error"));
+    static GLOBAL3: RefCell<bool> = RefCell::new(true);
+//    static GLOBALTHREAD: RefCell<std::process::Child>=RefCell::new(
+//        Command::new("ls")
+//        .spawn()
+//        .expect("error"));
+    static GLOBALCOMMUNITY: RefCell<(mpsc::Sender<bool>,mpsc::Receiver<bool>)> = RefCell::new(mpsc::channel());
 }
 //杀死子进程
 fn kill() {
-    GLOBALTHREAD.with(move |global| {
-        (*global.borrow_mut()).kill().expect("error");
-        *global.borrow_mut() = Command::new("echo").arg("stop").spawn().expect("error");
+    println!("sss");
+    GLOBALCOMMUNITY.with(move|global|{
+        if let Ok(_) = (*global.borrow_mut()).0.send(true){};
     });
+    //GLOBAL3.with(move |global|{
+    //    if *global.borrow_mut() == true {
+    //        println!("it is ture");
+    //    }
+    //});
+    //GLOBAL3.with(move |global|{
+    //    *global.borrow_mut() = false;
+    //});
+    //GLOBAL3.with(move |global|{
+    //    if *global.borrow_mut() == false {
+    //        println!("it is false");
+    //    }
+    //})
+//    GLOBALTHREAD.with(move |global| {
+//        (*global.borrow_mut()).kill().expect("error");
+//        *global.borrow_mut() = Command::new("echo").arg("stop").spawn().expect("error");
+//    });
 }
 fn run(name: &Urls, text: &gtk::TextView) {
     let mut json = String::new();
@@ -213,7 +233,7 @@ fn run(name: &Urls, text: &gtk::TextView) {
     if let Err(why) = file2.write_all(json.as_bytes()) {
         panic!("couldn't write to {}: {}", display2, why.to_string())
     }
-    kill();
+    //kill();
     //Command::new("pkill")
     //    .arg("v2ray")
     //    .output()
@@ -304,10 +324,21 @@ fn run(name: &Urls, text: &gtk::TextView) {
         text_buffer.set_text(&text);
         glib::Continue(true)
     });
-
-    GLOBALTHREAD.with(move |global| {
-        *global.borrow_mut() = running;
+    thread::spawn(move || {
+        GLOBALCOMMUNITY.with(move |global|{
+            if let Ok(test) = (*global.borrow()).1.recv(){
+                println!("sssss");
+                if test {
+                    running.kill().expect("error");
+                    drop(running);
+                }
+            }
+        });
     });
+    //});
+    //GLOBALTHREAD.with(move |global| {
+    //    *global.borrow_mut() = running;
+    //});
 
 }
 
@@ -788,6 +819,10 @@ fn build_ui(application: &gtk::Application) {
                 if path.depth() > 1 {
                     ui.ui_label.set_text(&format!("index{}", path.indices()[1]));
                     GLOBAL2.with(move |global2| {
+                        //如果正在运行就杀死
+                        if (*global2.borrow()).is_running != (0,-1){
+                            kill();
+                        }
                         //let locall = *global2.borrow();
                         *global2.borrow_mut() = Active {
                             is_running: (path.indices()[0], path.indices()[1]),
