@@ -17,6 +17,7 @@ use std::{
     io::prelude::*,
     path::Path,
     process::Command,
+    thread,
 };
 use tool::Urls;
 //use std::cell::RefCell;
@@ -45,15 +46,27 @@ struct AllUrls {
     name: String,
     content: Vec<Urls>,
 }
-thread_local!(
+thread_local! {
     static GLOBALURL: RefCell<Option<Vec<AllUrls>>> = RefCell::new(None);
     static GLOBAL: RefCell<Option<Ui>> = RefCell::new(None);
+    static GLOBALTEXT: RefCell<Option<gtk::TextView>> = RefCell::new(None);
     static GLOBAL2: RefCell<Active> = RefCell::new(Active {
         is_running: (0, -1),
         local: (0, 0),
     });
-);
-fn run(name: &Urls) {
+    static GLOBALTHREAD: RefCell<std::process::Child>=RefCell::new(
+        Command::new("ls")
+        .spawn()
+        .expect("error"));
+}
+//杀死子进程
+fn kill() {
+    GLOBALTHREAD.with(move |global| {
+        (*global.borrow_mut()).kill().expect("error");
+        *global.borrow_mut() = Command::new("echo").arg("stop").spawn().expect("error");
+    });
+}
+fn run(name: &Urls, text: &gtk::TextView) {
     let mut json = String::new();
     let temp = name.port.clone();
     let length = temp.len();
@@ -200,10 +213,11 @@ fn run(name: &Urls) {
     if let Err(why) = file2.write_all(json.as_bytes()) {
         panic!("couldn't write to {}: {}", display2, why.to_string())
     }
-    Command::new("pkill")
-        .arg("v2ray")
-        .output()
-        .unwrap_or_else(|e| panic!("failed to execute process: {}", e));
+    kill();
+    //Command::new("pkill")
+    //    .arg("v2ray")
+    //    .output()
+    //    .unwrap_or_else(|e| panic!("failed to execute process: {}", e));
 
     let home2 = env::var("HOME").unwrap();
     let location = home2.clone() + "/.config/gv2ray/v2core.json";
@@ -240,12 +254,70 @@ fn run(name: &Urls) {
             content = (&temp[1..length - 1]).to_string();
         }
     }
-    Command::new(content)
+    let mut running = Command::new(content)
         .arg("-config")
         .arg(home2 + "/.config/gv2ray/running.json")
+        .stdout(std::process::Stdio::piped())
         .spawn()
         .expect("failed");
+    let mut stream = running.stdout.take().expect("!stdout");
+    //let mut output = running.stdout;
+    //let s = String::from_utf8_lossy(&output.unwrap());
+    let text_buffer = text.buffer().expect("none");
+    let (tx, rx) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
+    // 将stdout的内容通过thread获取，通过channel传到textview里
+    thread::Builder::new()
+        .name("child_stream_to_vec".into())
+        .spawn(move || {
+            let mut storage: String = String::new();
+            loop {
+                let mut buf = [0];
+                match stream.read(&mut buf) {
+                    Err(err) => {
+                        println!("{}] Error reading from stream: {}", line!(), err);
+                        break;
+                    }
+                    Ok(got) => {
+                        if got == 0 {
+                            print!("The pipe break");
+                            break;
+                        } else if got == 1 {
+                            let index = ascii_to_char(buf[0]);
+                            //println!("{}", buf[0]);
+                            storage.push(index);
+                            //println!("storage is {}", storage);
+                            //println!("{}",buf[0]);
+                            tx.send(storage.clone()).expect("error");
+                        } else {
+                            println!("{}] Unexpected number of bytes: {}", line!(), got);
+                            break;
+                        }
+                    }
+                }
+            }
+        })
+        .expect("!thread");
+    rx.attach(None, move |text| {
+        //println!("send is {}",text);
+        text_buffer.set_text(&text);
+        glib::Continue(true)
+    });
+    //match output {
+    //    Some(ref mut out) =>{
+    //        let mut buf_string = String::new();
+    //        match out.read_to_string(&mut buf_string){
+    //            Ok(_) => text_buffer.set_text(&buf_string),
+    //            Err(_) => text_buffer.set_text("sss"),
+    //        }
+    //    },
+    //    None =>  text_buffer.set_text("vvv"),
+    //}
+    GLOBALTHREAD.with(move |global| {
+        *global.borrow_mut() = running;
+    });
+    //text_buffer.set_text("sss");
 
+    //text_buffer.set_text(s);
     //Command::new("nohup")
     //    .arg(content)
     //    .arg("-config")
@@ -591,6 +663,11 @@ fn build_ui(application: &gtk::Application) {
     let label_url = Label::new(Some("url"));
     label_url.set_justify(gtk::Justification::Left);
     label_url.set_max_width_chars(10);
+    let text_view = gtk::TextView::new();
+    text_view.set_editable(false);
+    let scroll_text = gtk::ScrolledWindow::new(gtk::NONE_ADJUSTMENT, gtk::NONE_ADJUSTMENT);
+    scroll_text.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
+    scroll_text.add(&text_view);
     label_url.set_line_wrap(true);
     //label_url.set_wrap(true);
     let v_box = gtk::Box::new(gtk::Orientation::Vertical, 10);
@@ -600,7 +677,8 @@ fn build_ui(application: &gtk::Application) {
     h_box.pack_start(&label_add, false, true, 0);
     h_box.pack_start(&label_port, false, true, 0);
     h_box.pack_start(&label_url, false, true, 0);
-    h_box.pack_start(&label, true, true, 0);
+    h_box.pack_start(&label, false, true, 0);
+    h_box.pack_start(&scroll_text, true, true, 0);
     let button_box = gtk::ButtonBox::new(gtk::Orientation::Horizontal);
     button_box.set_layout(gtk::ButtonBoxStyle::End);
     let button1 = gtk::Button::with_label("new");
@@ -670,6 +748,9 @@ fn build_ui(application: &gtk::Application) {
     // Iter 可以获取内容，但是active可以获取目录位置
     // 准确来说，active需要点两次
     // 移动到global里去，主要是为了方便改写和访问，这样变量就不会首主进程影响
+    GLOBALTEXT.with(move |global| {
+        *global.borrow_mut() = Some(text_view);
+    });
     GLOBAL.with(move |global| {
         *global.borrow_mut() = Some(Ui {
             running_button: button1,
@@ -691,10 +772,11 @@ fn build_ui(application: &gtk::Application) {
                             is_running: (0, -1),
                             local: temp,
                         };
-                        Command::new("pkill")
-                            .arg("v2ray")
-                            .output()
-                            .unwrap_or_else(|e| panic!("failed to execute process: {}", e));
+                        kill();
+                        //Command::new("pkill")
+                        //    .arg("v2ray")
+                        //    .output()
+                        //    .unwrap_or_else(|e| panic!("failed to execute process: {}", e));
                     } else {
                         s.set_label("stop");
                         //println!("{},{}",locall.is_running,locall.local);
@@ -704,7 +786,12 @@ fn build_ui(application: &gtk::Application) {
                         };
                         GLOBALURL.with(|globalurl| {
                             if let Some(ref url) = *globalurl.borrow() {
-                                run(&url[temp.0 as usize].content[temp.1 as usize]);
+                                GLOBALTEXT.with(|globaltext| {
+                                    if let Some(ref text) = *globaltext.borrow() {
+                                        run(&url[temp.0 as usize].content[temp.1 as usize], text);
+                                    }
+                                });
+                                //run(&url[temp.0 as usize].content[temp.1 as usize],&text_view);
                             }
                         });
                     }
@@ -713,6 +800,7 @@ fn build_ui(application: &gtk::Application) {
         }
     });
     //active时候更改label
+
     tree.connect_row_activated(move |_, path, _column| {
         GLOBAL.with(move |global| {
             if let Some(ref ui) = *global.borrow() {
@@ -728,8 +816,19 @@ fn build_ui(application: &gtk::Application) {
                     });
                     GLOBALURL.with(|globalurl| {
                         if let Some(ref url) = *globalurl.borrow() {
-                            run(&url[path.indices()[0] as usize].content
-                                [path.indices()[1] as usize]);
+                            GLOBALTEXT.with(|globaltext| {
+                                if let Some(ref text) = *globaltext.borrow() {
+                                    //run(&url[temp.0 as usize].content[temp.1 as usize],&text);
+                                    run(
+                                        &url[path.indices()[0] as usize].content
+                                            [path.indices()[1] as usize],
+                                        text,
+                                    );
+                                    //[path.indices()[1] as usize]);
+                                }
+                            });
+                            //run(&url[path.indices()[0] as usize].content
+                            //[path.indices()[1] as usize]);
                         }
                     });
                 }
@@ -825,6 +924,10 @@ fn build_ui(application: &gtk::Application) {
         });
     });
     // Adding the layout to the window.
+    window.connect_delete_event(move |_,_|{
+        kill();
+        Inhibit(false)
+    });
     window.add(&vertical_layout);
 
     window.show_all();
