@@ -18,7 +18,12 @@ use std::{
     path::Path,
     process::Command,
     thread,
-    sync::mpsc,
+    sync::{
+        mpsc,
+        Arc,
+        RwLock,
+    },
+    time::Duration,
 };
 use tool::Urls;
 //use std::cell::RefCell;
@@ -55,26 +60,39 @@ thread_local! {
         is_running: (0, -1),
         local: (0, 0),
     });
-    static GLOBAL3: RefCell<bool> = RefCell::new(true);
+    static GLOBAL3: RefCell<bool> = RefCell::new(false);
 //    static GLOBALTHREAD: RefCell<std::process::Child>=RefCell::new(
 //        Command::new("ls")
 //        .spawn()
 //        .expect("error"));
     static GLOBALCOMMUNITY: RefCell<(mpsc::Sender<bool>,mpsc::Receiver<bool>)> = RefCell::new(mpsc::channel());
+    static GLOBALARC: Arc<RwLock<bool>> = Arc::new(RwLock::new(false));
 }
 //杀死子进程
 fn kill() {
     println!("sss");
-    GLOBALCOMMUNITY.with(move|global|{
-        if let Ok(_) = (*global.borrow_mut()).0.send(true){};
+    //GLOBALCOMMUNITY.with(move|global|{
+    //    if let Ok(_) = (*global.borrow_mut()).0.send(true){};
+    //});
+    GLOBALARC.with(|global|{
+        let mut num = global.write().unwrap();
+        *num = true;
     });
+    GLOBALARC.with(|global|{
+        let nums = Arc::clone(&global);
+        let num = nums.read().unwrap();
+        if *num {
+            println!("yes");
+        }
+    });
+
     //GLOBAL3.with(move |global|{
     //    if *global.borrow_mut() == true {
     //        println!("it is ture");
     //    }
     //});
     //GLOBAL3.with(move |global|{
-    //    *global.borrow_mut() = false;
+    //    *global.borrow_mut() = true;
     //});
     //GLOBAL3.with(move |global|{
     //    if *global.borrow_mut() == false {
@@ -325,15 +343,55 @@ fn run(name: &Urls, text: &gtk::TextView) {
         glib::Continue(true)
     });
     thread::spawn(move || {
-        GLOBALCOMMUNITY.with(move |global|{
-            if let Ok(test) = (*global.borrow()).1.recv(){
-                println!("sssss");
-                if test {
-                    running.kill().expect("error");
-                    drop(running);
-                }
+            loop {
+                let test = GLOBALARC.with(|global|{
+                        let nums = Arc::clone(&global);
+                        let num = nums.read().unwrap();
+                        thread::sleep(Duration::from_millis(10000));
+                        if *num {
+                            println!("hello");
+                            //running.kill().expect("error");
+                            //drop(running);
+                            let mut num2 = nums.write().unwrap();
+                            *num2 = false;
+                            return true
+                        }else{
+                            print!("hhsh");
+                            return false;
+                        }
+
+                });
+
+               //let test = GLOBAL3.with(move |global|{
+               //         thread::sleep(Duration::from_millis(10000));
+               //         if *global.borrow_mut() == true {
+               //             println!("hello");
+               //             //running.kill().expect("error");
+               //             //drop(running);
+               //             return true
+               //         }else{
+               //             print!("hhsh");
+               //             return true;
+               //         }
+
+               // });
+               println!("ssss");
+               if test {
+                   break;
+               }
             }
-        });
+            println!("break");
+            running.kill().expect("error");
+            drop(running);
+        //GLOBALCOMMUNITY.with(move |global|{
+        //    if let Ok(test) = (*global.borrow()).1.recv(){
+        //        println!("sssss");
+        //        if test {
+        //            running.kill().expect("error");
+        //            drop(running);
+        //        }
+        //    }
+        //});
     });
     //});
     //GLOBALTHREAD.with(move |global| {
