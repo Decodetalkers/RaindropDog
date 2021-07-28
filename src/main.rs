@@ -19,12 +19,12 @@ use std::{
     io::prelude::*,
     path::Path,
     process::Command,
-    thread,
     sync::{
         //mpsc,
         Arc,
         RwLock,
     },
+    thread,
     time::Duration,
 };
 use tool::Urls;
@@ -71,7 +71,7 @@ thread_local! {
     //static GLOBALCOMMUNITY: RefCell<(mpsc::Sender<bool>,mpsc::Receiver<bool>)> = RefCell::new(mpsc::channel());
 }
 //全局变量
-lazy_static!{
+lazy_static! {
     static ref GLOBALARC: Arc<RwLock<bool>> = Arc::new(RwLock::new(false));
 }
 //杀死子进程
@@ -322,31 +322,26 @@ fn run(name: &Urls, text: &gtk::TextView) {
         glib::Continue(true)
     });
     thread::spawn(move || {
-            loop {
-                fn test() -> bool {
-                   let nums = Arc::clone(&GLOBALARC);
-                   let num = nums.read().unwrap();
-                   thread::sleep(Duration::from_millis(10));
-                   if *num {
-                       true
-                   }else{
-                       false
-                   }
-
-                }
-               if test() {
-                let mut num2 = GLOBALARC.write().unwrap();
-                   *num2 = false;
-
-                   //println!("is break");
-                   break;
-               }
+        loop {
+            fn test() -> bool {
+                let nums = Arc::clone(&GLOBALARC);
+                let num = nums.read().unwrap();
+                thread::sleep(Duration::from_millis(10));
+                *num
             }
-            //println!("break");
-            running.kill().expect("error");
-            //wait是必要的，回收进程
-            running.wait().unwrap();
-            drop(running);
+            if test() {
+                let mut num2 = GLOBALARC.write().unwrap();
+                *num2 = false;
+
+                //println!("is break");
+                break;
+            }
+        }
+        //println!("break");
+        running.kill().expect("error");
+        //wait是必要的，回收进程
+        running.wait().unwrap();
+        drop(running);
         //GLOBALCOMMUNITY.with(move |global|{
         //    if let Ok(test) = (*global.borrow()).1.recv(){
         //        println!("sssss");
@@ -361,7 +356,6 @@ fn run(name: &Urls, text: &gtk::TextView) {
     //GLOBALTHREAD.with(move |global| {
     //    *global.borrow_mut() = running;
     //});
-
 }
 
 fn create_storage_before() {
@@ -842,7 +836,7 @@ fn build_ui(application: &gtk::Application) {
                     ui.ui_label.set_text(&format!("index{}", path.indices()[1]));
                     GLOBAL2.with(move |global2| {
                         //如果正在运行就杀死
-                        if (*global2.borrow()).is_running != (0,-1){
+                        if (*global2.borrow()).is_running != (0, -1) {
                             kill();
                         }
                         //let locall = *global2.borrow();
@@ -962,7 +956,7 @@ fn build_ui(application: &gtk::Application) {
         });
     });
     // Adding the layout to the window.
-    window.connect_delete_event(move |_,_|{
+    window.connect_delete_event(move |_, _| {
         kill();
         Inhibit(false)
     });
