@@ -1,6 +1,8 @@
 mod multi;
 mod spider;
 mod tool;
+#[macro_use]
+extern crate lazy_static;
 use futures::executor::block_on;
 use gtk::prelude::*;
 use gtk::{
@@ -19,7 +21,7 @@ use std::{
     process::Command,
     thread,
     sync::{
-        mpsc,
+        //mpsc,
         Arc,
         RwLock,
     },
@@ -52,6 +54,7 @@ struct AllUrls {
     name: String,
     content: Vec<Urls>,
 }
+//这边是需要更改的全局变量，设置到thread_local里，理论上应该设置成全局变量？但是gtk给的就是thread_local..
 thread_local! {
     static GLOBALURL: RefCell<Option<Vec<AllUrls>>> = RefCell::new(None);
     static GLOBAL: RefCell<Option<Ui>> = RefCell::new(None);
@@ -60,51 +63,27 @@ thread_local! {
         is_running: (0, -1),
         local: (0, 0),
     });
-    static GLOBAL3: RefCell<bool> = RefCell::new(false);
+    //static GLOBAL3: RefCell<bool> = RefCell::new(false);
 //    static GLOBALTHREAD: RefCell<std::process::Child>=RefCell::new(
 //        Command::new("ls")
 //        .spawn()
 //        .expect("error"));
-    static GLOBALCOMMUNITY: RefCell<(mpsc::Sender<bool>,mpsc::Receiver<bool>)> = RefCell::new(mpsc::channel());
-    static GLOBALARC: Arc<RwLock<bool>> = Arc::new(RwLock::new(false));
+    //static GLOBALCOMMUNITY: RefCell<(mpsc::Sender<bool>,mpsc::Receiver<bool>)> = RefCell::new(mpsc::channel());
+}
+//全局变量
+lazy_static!{
+    static ref GLOBALARC: Arc<RwLock<bool>> = Arc::new(RwLock::new(false));
 }
 //杀死子进程
 fn kill() {
-    println!("sss");
-    //GLOBALCOMMUNITY.with(move|global|{
-    //    if let Ok(_) = (*global.borrow_mut()).0.send(true){};
-    //});
-    GLOBALARC.with(|global|{
-        let mut num = global.write().unwrap();
-        *num = true;
-    });
-    GLOBALARC.with(|global|{
-        let nums = Arc::clone(&global);
-        let num = nums.read().unwrap();
-        if *num {
-            println!("yes");
-        }
-    });
-
-    //GLOBAL3.with(move |global|{
-    //    if *global.borrow_mut() == true {
-    //        println!("it is ture");
-    //    }
-    //});
-    //GLOBAL3.with(move |global|{
-    //    *global.borrow_mut() = true;
-    //});
-    //GLOBAL3.with(move |global|{
-    //    if *global.borrow_mut() == false {
-    //        println!("it is false");
-    //    }
-    //})
-//    GLOBALTHREAD.with(move |global| {
-//        (*global.borrow_mut()).kill().expect("error");
-//        *global.borrow_mut() = Command::new("echo").arg("stop").spawn().expect("error");
-//    });
+    println!("stop");
+    let mut num = GLOBALARC.write().unwrap();
+    *num = true;
 }
 fn run(name: &Urls, text: &gtk::TextView) {
+    //不管如何事先先状态清除
+    let mut num2 = GLOBALARC.write().unwrap();
+    *num2 = false;
     let mut json = String::new();
     let temp = name.port.clone();
     let length = temp.len();
@@ -344,44 +323,29 @@ fn run(name: &Urls, text: &gtk::TextView) {
     });
     thread::spawn(move || {
             loop {
-                let test = GLOBALARC.with(|global|{
-                        let nums = Arc::clone(&global);
-                        let num = nums.read().unwrap();
-                        thread::sleep(Duration::from_millis(10000));
-                        if *num {
-                            println!("hello");
-                            //running.kill().expect("error");
-                            //drop(running);
-                            let mut num2 = nums.write().unwrap();
-                            *num2 = false;
-                            return true
-                        }else{
-                            print!("hhsh");
-                            return false;
-                        }
+                fn test() -> bool {
+                   let nums = Arc::clone(&GLOBALARC);
+                   let num = nums.read().unwrap();
+                   thread::sleep(Duration::from_millis(10));
+                   if *num {
+                       true
+                   }else{
+                       false
+                   }
 
-                });
+                }
+               if test() {
+                let mut num2 = GLOBALARC.write().unwrap();
+                   *num2 = false;
 
-               //let test = GLOBAL3.with(move |global|{
-               //         thread::sleep(Duration::from_millis(10000));
-               //         if *global.borrow_mut() == true {
-               //             println!("hello");
-               //             //running.kill().expect("error");
-               //             //drop(running);
-               //             return true
-               //         }else{
-               //             print!("hhsh");
-               //             return true;
-               //         }
-
-               // });
-               println!("ssss");
-               if test {
+                   //println!("is break");
                    break;
                }
             }
-            println!("break");
+            //println!("break");
             running.kill().expect("error");
+            //wait是必要的，回收进程
+            running.wait().unwrap();
             drop(running);
         //GLOBALCOMMUNITY.with(move |global|{
         //    if let Ok(test) = (*global.borrow()).1.recv(){
