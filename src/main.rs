@@ -9,7 +9,7 @@ use gtk::{
     ApplicationWindow, CellRendererText, Label, Orientation, TreeStore, TreeView, TreeViewColumn,
     WindowPosition,
 };
-use serde_json::Result;
+//use serde_json::Result;
 use serde_json::Value;
 use spider::{ascii_to_char, get_the_key};
 use std::{
@@ -44,11 +44,6 @@ struct Ui {
     port_label: gtk::Label,
     url_label: gtk::Label,
 }
-enum Tcp {
-    Ss,
-    V2,
-}
-
 //记录根节点的名字以及内容，为接下来存储多个信息做铺垫
 struct AllUrls {
     name: String,
@@ -85,129 +80,7 @@ fn run(name: &Urls, text: &gtk::TextView) {
     let mut num2 = GLOBALARC.write().unwrap();
     *num2 = false;
     let mut json = String::new();
-    let temp = name.port.clone();
-    let length = temp.len();
-    let port: String = (&temp[1..length - 1]).to_string();
-    let temp2 = name.aid.clone();
-    let length2 = temp2.len();
-    let aid: String = (&temp2[1..length2 - 1]).to_string();
-    let output = format!(
-        "{{
-    \"inbounds\":[{{
-        \"port\":8889,
-        \"listen\":\"127.0.0.1\",
-        \"protocol\":\"http\",
-        \"settings\":{{
-            \"udp\": true
-        }}
-    }}],
-    \"outbounds\":[{{
-        \"protocol\":{},
-        \"sendThrough\": \"0.0.0.0\",
-        \"settings\":{{
-            \"vnext\": [{{
-                \"address\": {},
-                \"port\":{},
-                \"users\":[{{
-                    \"alterId\": {},
-                    \"id\":{}
-                }}]
-            }}]
-        }},
-        \"streamSettings\":{{
-            \"dsSettings\": {{
-                \"path\": {}
-            }},
-            \"httpSettings\":{{
-                \"host\": [
-                ],
-                \"path\":{}
-            }},
-            \"kcpSettings\": {{
-                \"congestion\": false,
-                \"downlinkCapacity\":20,
-                \"header\": {{
-                    \"type\": \"none\"
-                }},
-                \"mtu\": 1350,
-                \"readBufferSize\": 1,
-                \"tti\": 20,
-                \"uplinkCapacity\": 5,
-                \"writeBufferSize\": 1
-            }},
-            \"network\": {},
-            \"quicSettings\":{{
-                \"header\": {{
-                    \"type\":\"none\"
-                }},
-                \"key\": \"\",
-                \"security\":\"\"
-            }},
-            \"security\":\"none\",
-            \"sockopt\":{{
-                \"mark\": 255,
-                \"tcpFastOpen\": false,
-                \"tproxy\": \"off\"
-            }},
-            \"tcpSettings\": {{
-                \"header\": {{
-                    \"request\" :{{
-                        \"headers\":{{
-                        }},
-                        \"method\": \"GET\",
-                        \"path\":[
-                        ],
-                        \"version\":\"1.1\"
-                    }},
-                    \"type\": \"none\"
-                }}
-            }},
-            \"tlsSettings\": {{
-                \"allowInsecure\": true,
-                \"allowInsecureCiphers\": true,
-                \"alpn\":[
-                ],
-                \"certificates\":[
-                ],
-                \"disableSessionResumption\":true,
-                \"disableSystemRoot\":true,
-                \"serveName\": \"\"
-            }},
-            \"wsSettings\" :{{
-                \"headers\" :{{
-                }},
-                \"path\":{}
-            }},
-            \"xtlsSettings\":{{
-                \"allowInsecure\":true,
-                \"allowInsecureCiphers\":true,
-                \"alpn\":[
-                ],
-                \"certificates\":[
-                ],
-                \"disableSessionResumption\": false,
-                \"disableSystemRoot\": true,
-                \"serveName\":\"\"
-            }},
-            \"tag\":\"outBound_PROXY\"
-        }}
-    }},
-    {{
-        \"protocol\":\"freedom\",
-        \"tag\": \"direct\",
-        \"settings\":{{}}
-    }}],
-    \"routing\": {{
-        \"domainStrategy\": \"IPOnDemand\",
-        \"rules\":[{{
-            \"type\":\"field\",
-            \"ip\":[\"geoip:private\"],
-            \"outboundTag\": \"direct\"
-        }}]
-    }}
-}}",
-        name.func, name.add, port, aid, name.id, name.path, name.path, name.net, name.path
-    );
+    let output = name.get_the_json();
     json.push_str(output.as_str());
     let home = env::var("HOME").unwrap();
     let location = home + "/.config/gv2ray/running.json";
@@ -452,81 +325,6 @@ fn create_and_fill_model_before(model: &TreeStore) {
 
 // 生成tree
 fn create_and_fill_model(model: &TreeStore, temp: Vec<String>) {
-    fn ascii_to_string(code: Vec<u8>) -> String {
-        let mut output: String = String::new();
-        for cor in code.into_iter() {
-            output.push(ascii_to_char(cor));
-        }
-        output
-    }
-    fn type_of_url(url: String) -> Tcp {
-        for pair in url.chars() {
-            if pair == 's' {
-                return Tcp::Ss;
-            }
-            if pair == 'v' {
-                return Tcp::V2;
-            }
-        }
-        Tcp::Ss
-    }
-    fn get_the_url(url: String) -> Urls {
-        let func = type_of_url(url.clone());
-        match func {
-            Tcp::Ss => Urls {
-                urls: url,
-                func: "\"ss\"".to_string(),
-                add: "\"unknown\"".to_string(),
-                aid: "\"unknown\"".to_string(),
-                host: "\"unknown\"".to_string(),
-                id: "\"unknown\"".to_string(),
-                net: "\"unknown\"".to_string(),
-                path: "\"unknown\"".to_string(),
-                port: "\"unknown\"".to_string(),
-                ps: "\"unknown\"".to_string(),
-                tls: "\"unknown\"".to_string(),
-                typpe: "\"unknown\"".to_string(),
-            },
-            Tcp::V2 => {
-                let newurl = &url[8..];
-                let json = ascii_to_string(base64::decode(newurl.to_string().as_bytes()).unwrap());
-                let v: Result<Value> = serde_json::from_str(json.as_str());
-                match v {
-                    Ok(input) => {
-                        Urls {
-                            //company : input["add"].to_string(),
-                            urls: url,
-                            func: "\"vmess\"".to_string(),
-                            add: input["add"].to_string(),
-                            aid: input["aid"].to_string(),
-                            host: input["host"].to_string(),
-                            id: input["id"].to_string(),
-                            net: input["net"].to_string(),
-                            path: input["path"].to_string(),
-                            port: input["port"].to_string(),
-                            ps: input["ps"].to_string(),
-                            tls: input["tls"].to_string(),
-                            typpe: input["type"].to_string(),
-                        }
-                    }
-                    Err(_) => Urls {
-                        urls: url,
-                        func: "\"vmess\"".to_string(),
-                        add: "\"unknown\"".to_string(),
-                        aid: "\"unknown\"".to_string(),
-                        host: "\"unknown\"".to_string(),
-                        id: "\"unknown\"".to_string(),
-                        net: "\"unknown\"".to_string(),
-                        path: "\"unknown\"".to_string(),
-                        port: "\"unknown\"".to_string(),
-                        ps: "\"unknown\"".to_string(),
-                        tls: "\"unknown\"".to_string(),
-                        typpe: "\"unknown\"".to_string(),
-                    },
-                }
-            }
-        }
-    }
     create_storage_before();
     model.clear();
     let future = get_the_key(temp);
@@ -546,7 +344,7 @@ fn create_and_fill_model(model: &TreeStore, temp: Vec<String>) {
         );
         let mut input_in: Vec<String> = vec![];
         for pair2 in pair.into_iter() {
-            let url_local = get_the_url(pair2);
+            let url_local = Urls::new(pair2);
             let temp = url_local.ps.clone();
             urls.push(url_local.clone());
             //let temp = pair2.clone();
