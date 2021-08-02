@@ -266,7 +266,11 @@ fn create_and_fill_model_before(model: &TreeStore) {
     match file.read_to_string(&mut ss) {
         Err(_) => {}
         Ok(_) => {
-            let v: Value = serde_json::from_str(ss.as_str()).unwrap();
+            //json 出现问题返回空
+            let v: Value = match serde_json::from_str(ss.as_str()) {
+                Err(_) => Value::Null,
+                Ok(ouput) => ouput,
+            };
             let mut index = 0;
             let mut all_urls: Vec<AllUrls> = vec![];
             while v[index] != Value::Null {
