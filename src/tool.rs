@@ -61,7 +61,8 @@ impl Urls {
 
                 let first_temp = first[1].to_string();
                 let second: Vec<&str> = first_temp.split('#').collect();
-                let ps = format!("\"{}\"", second[1].to_string());
+                let ps0 = urlencoding::decode(second[1]).unwrap();
+                let ps = format!("\"{}\"", ps0.to_string());
 
                 let second_temp = second[0].to_string();
                 let third: Vec<&str> = second_temp.split(':').collect();
