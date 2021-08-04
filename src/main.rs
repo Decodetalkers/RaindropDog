@@ -96,7 +96,7 @@ fn run(name: &Urls, text: &gtk::TextView) {
         panic!("couldn't write to {}: {}", display2, why.to_string())
     }
 
-    let (home2,content) = tool::get_v2ray();
+    let (home2, content) = tool::get_v2ray();
     let mut running = Command::new(content)
         .arg("-config")
         .arg(home2 + "/.config/gv2ray/running.json")

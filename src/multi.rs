@@ -1,8 +1,5 @@
+use crate::tool::{get_v2ray, write_json};
 use gtk::prelude::*;
-use crate::tool::{
-    get_v2ray,
-    write_json,
-};
 pub fn create_sub_window(
     application: &gtk::Application,
     title: &str,
@@ -48,17 +45,17 @@ pub fn create_sub_window(
         button_box.pack_start(&button, false, false, 0);
         boxs.pack_start(&urls_input, true, false, 0);
         boxs.pack_start(&button_box, false, false, 0);
-        let (_,v2ray) = get_v2ray();
+        let (_, v2ray) = get_v2ray();
         urls_input.set_text(&v2ray);
         button.connect_clicked(glib::clone!(@weak urls_input =>move |_|{
                 //model.clear();
             if urls_input.text() !=""{
-            write_json("/.config/gv2ray/v2core.json".to_string(), 
+            write_json("/.config/gv2ray/v2core.json".to_string(),
                 format!("{{
     \"v2core\":\"{}\"
 }}",urls_input.text().to_string()));
             }
-                
+
         }));
         create_tab(&notebook, "v2ray", boxs.upcast());
     }

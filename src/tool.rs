@@ -1,20 +1,15 @@
 use crate::spider::ascii_to_char;
 use serde_json::Result;
 use serde_json::Value;
-use std::{
-    path::Path,
-    fs::File,
-    io::prelude::*,
-    env,
-};
+use std::{env, fs::File, io::prelude::*, path::Path};
 enum Tcp {
     Ss,
     V2,
 }
 //写入json位置
-pub fn write_json(location: String,content:String) {
+pub fn write_json(location: String, content: String) {
     let home = env::var("HOME").unwrap();
-    let finally = home+location.as_str();
+    let finally = home + location.as_str();
     let path2 = Path::new(&finally);
     let display2 = path2.display();
     let mut file2 = match File::create(&path2) {
@@ -26,10 +21,9 @@ pub fn write_json(location: String,content:String) {
     if let Err(why) = file2.write_all(storge2.as_bytes()) {
         panic!("couldn't write to {}: {}", display2, why.to_string())
     }
-
 }
 //获取v2core位置
-pub fn get_v2ray() -> (String,String){
+pub fn get_v2ray() -> (String, String) {
     let home2 = env::var("HOME").unwrap();
     let location = home2.clone() + "/.config/gv2ray/v2core.json";
     let path = Path::new(location.as_str());
@@ -65,7 +59,7 @@ pub fn get_v2ray() -> (String,String){
             content = (&temp[1..length - 1]).to_string();
         }
     }
-    (home2,content)
+    (home2, content)
 }
 #[derive(Clone)]
 pub struct Urls {
