@@ -11,6 +11,7 @@ enum Tcp {
     Ss,
     V2,
 }
+//写入json位置
 pub fn write_json(location: String,content:String) {
     let home = env::var("HOME").unwrap();
     let finally = home+location.as_str();
@@ -27,6 +28,7 @@ pub fn write_json(location: String,content:String) {
     }
 
 }
+//获取v2core位置
 pub fn get_v2ray() -> (String,String){
     let home2 = env::var("HOME").unwrap();
     let location = home2.clone() + "/.config/gv2ray/v2core.json";
