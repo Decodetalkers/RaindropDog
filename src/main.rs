@@ -92,58 +92,11 @@ fn run(name: &Urls, text: &gtk::TextView) {
         Err(why) => panic!("couldn't create {}: {}", display2, why.to_string()),
         Ok(file2) => file2,
     };
-
-    // 将 `LOREM_IPSUM` 字符串写进 `file`，返回 `io::Result<()>`
-    //match file2.write_all(json.as_bytes()) {
-    //    Err(why) => {
-    //        panic!("couldn't write to {}: {}", display2, why.to_string())
-    //    }
-    //    Ok(_) => {}
-    //}
     if let Err(why) = file2.write_all(json.as_bytes()) {
         panic!("couldn't write to {}: {}", display2, why.to_string())
     }
-    //kill();
-    //Command::new("pkill")
-    //    .arg("v2ray")
-    //    .output()
-    //    .unwrap_or_else(|e| panic!("failed to execute process: {}", e));
 
-    let home2 = env::var("HOME").unwrap();
-    let location = home2.clone() + "/.config/gv2ray/v2core.json";
-    let path = Path::new(location.as_str());
-    //let display = path.display();
-    let mut file = match File::open(&path) {
-        // `io::Error` 的 `description` 方法返回一个描述错误的字符串。
-        Err(_) => {
-            let path2 = Path::new(location.as_str());
-            let display2 = path2.display();
-            let mut file2 = match File::create(&path2) {
-                Err(why) => panic!("couldn't create {}: {}", display2, why.to_string()),
-                Ok(file2) => file2,
-            };
-            let mut storge2: String = String::new();
-            storge2.push_str("{\n\"v2core\":\"/usr/bin/v2ray\"\n}");
-            // 将 `LOREM_IPSUM` 字符串写进 `file`，返回 `io::Result<()>`
-            if let Err(why) = file2.write_all(storge2.as_bytes()) {
-                panic!("couldn't write to {}: {}", display2, why.to_string())
-            }
-            let path3 = Path::new(location.as_str());
-            File::open(&path3).unwrap()
-        }
-        Ok(file) => file,
-    };
-    let mut ss = String::new();
-    let mut content: String = String::new();
-    match file.read_to_string(&mut ss) {
-        Err(_) => {}
-        Ok(_) => {
-            let v: Value = serde_json::from_str(ss.as_str()).unwrap();
-            let temp = v["v2core"].to_string();
-            let length = temp.len();
-            content = (&temp[1..length - 1]).to_string();
-        }
-    }
+    let (home2,content) = tool::get_v2ray();
     let mut running = Command::new(content)
         .arg("-config")
         .arg(home2 + "/.config/gv2ray/running.json")
@@ -215,20 +168,7 @@ fn run(name: &Urls, text: &gtk::TextView) {
         //wait是必要的，回收进程
         running.wait().unwrap();
         drop(running);
-        //GLOBALCOMMUNITY.with(move |global|{
-        //    if let Ok(test) = (*global.borrow()).1.recv(){
-        //        println!("sssss");
-        //        if test {
-        //            running.kill().expect("error");
-        //            drop(running);
-        //        }
-        //    }
-        //});
     });
-    //});
-    //GLOBALTHREAD.with(move |global| {
-    //    *global.borrow_mut() = running;
-    //});
 }
 
 fn create_storage_before() {
@@ -319,10 +259,6 @@ fn create_and_fill_model_before(model: &TreeStore) {
             GLOBALURL.with(move |global| {
                 *global.borrow_mut() = Some(all_urls);
             });
-            //let entries = &input;
-            //for (i, entry) in entries.iter().enumerate() {
-            //    model.insert_with_values(None,None, &[(0, &(i as u32)), (1, &entry)]);
-            //}
         }
     }
 }
@@ -537,7 +473,7 @@ fn build_ui(application: &gtk::Application) {
     create_and_fill_model_before(&model);
     button2.connect_clicked(
         glib::clone!(@weak model,@weak application,@weak window => move |_|{
-        multi::create_sub_window(&application, "input urls",create_and_fill_model,&model,&window);
+            multi::create_sub_window(&application, "input urls",create_and_fill_model,&model,&window);
         }),
     );
     //增加回退功能，如果节点不小心炸了，那么历史记录可以退回来
@@ -603,10 +539,6 @@ fn build_ui(application: &gtk::Application) {
                             local: temp,
                         };
                         kill();
-                        //Command::new("pkill")
-                        //    .arg("v2ray")
-                        //    .output()
-                        //    .unwrap_or_else(|e| panic!("failed to execute process: {}", e));
                     } else {
                         s.set_label("stop");
                         //println!("{},{}",locall.is_running,locall.local);

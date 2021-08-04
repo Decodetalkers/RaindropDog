@@ -1,11 +1,70 @@
 use crate::spider::ascii_to_char;
 use serde_json::Result;
 use serde_json::Value;
+use std::{
+    path::Path,
+    fs::File,
+    io::prelude::*,
+    env,
+};
 enum Tcp {
     Ss,
     V2,
 }
+pub fn write_json(location: String,content:String) {
+    let home = env::var("HOME").unwrap();
+    let finally = home+location.as_str();
+    let path2 = Path::new(&finally);
+    let display2 = path2.display();
+    let mut file2 = match File::create(&path2) {
+        Err(why) => panic!("couldn't create {}: {}", display2, why.to_string()),
+        Ok(file2) => file2,
+    };
+    let storge2: String = content;
+    // 将 `LOREM_IPSUM` 字符串写进 `file`，返回 `io::Result<()>`
+    if let Err(why) = file2.write_all(storge2.as_bytes()) {
+        panic!("couldn't write to {}: {}", display2, why.to_string())
+    }
 
+}
+pub fn get_v2ray() -> (String,String){
+    let home2 = env::var("HOME").unwrap();
+    let location = home2.clone() + "/.config/gv2ray/v2core.json";
+    let path = Path::new(location.as_str());
+    //let display = path.display();
+    let mut file = match File::open(&path) {
+        // `io::Error` 的 `description` 方法返回一个描述错误的字符串。
+        Err(_) => {
+            let path2 = Path::new(location.as_str());
+            let display2 = path2.display();
+            let mut file2 = match File::create(&path2) {
+                Err(why) => panic!("couldn't create {}: {}", display2, why.to_string()),
+                Ok(file2) => file2,
+            };
+            let mut storge2: String = String::new();
+            storge2.push_str("{\n\"v2core\":\"/usr/bin/v2ray\"\n}");
+            // 将 `LOREM_IPSUM` 字符串写进 `file`，返回 `io::Result<()>`
+            if let Err(why) = file2.write_all(storge2.as_bytes()) {
+                panic!("couldn't write to {}: {}", display2, why.to_string())
+            }
+            let path3 = Path::new(location.as_str());
+            File::open(&path3).unwrap()
+        }
+        Ok(file) => file,
+    };
+    let mut ss = String::new();
+    let mut content: String = String::new();
+    match file.read_to_string(&mut ss) {
+        Err(_) => {}
+        Ok(_) => {
+            let v: Value = serde_json::from_str(ss.as_str()).unwrap();
+            let temp = v["v2core"].to_string();
+            let length = temp.len();
+            content = (&temp[1..length - 1]).to_string();
+        }
+    }
+    (home2,content)
+}
 #[derive(Clone)]
 pub struct Urls {
     pub func: String,
@@ -149,8 +208,8 @@ impl Urls {
         let length2 = temp2.len();
         let aid: String = (&temp2[1..length2 - 1]).to_string();
         if self.func == *"\"vmess\"" {
-        format!(
-            "{{
+            format!(
+                "{{
     \"inbounds\":[{{
         \"port\":8889,
         \"listen\":\"127.0.0.1\",
@@ -264,10 +323,11 @@ impl Urls {
         }}]
     }}
 }}",
-            self.func, self.add, port, aid, self.id, self.path, self.path, self.net, self.path
-        )
-        }else{
-            format!("{{
+                self.func, self.add, port, aid, self.id, self.path, self.path, self.net, self.path
+            )
+        } else {
+            format!(
+                "{{
     \"api\":{{
         \"service\":[
             \"HandlerService\",
@@ -477,7 +537,9 @@ impl Urls {
     }},
     \"stats\": {{
     }}
-}}",self.add,self.net,self.id,port)
+}}",
+                self.add, self.net, self.id, port
+            )
         }
     }
 }
