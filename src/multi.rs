@@ -28,7 +28,7 @@ pub fn create_sub_window(
         button_box.pack_start(&button, false, false, 0);
         boxs.pack_start(&urls_input, true, false, 0);
         boxs.pack_start(&button_box, false, false, 0);
-        button.connect_clicked(glib::clone!(@weak model,@weak urls_input =>move |_|{
+        button.connect_clicked(glib::clone!(@weak model =>move |_|{
                 //model.clear();
                 let input: String = urls_input.text().to_string();
                 let temp : Vec<String> = vec![input];
@@ -47,7 +47,7 @@ pub fn create_sub_window(
         boxs.pack_start(&button_box, false, false, 0);
         let (_, v2ray) = get_v2ray();
         urls_input.set_text(&v2ray);
-        button.connect_clicked(glib::clone!(@weak urls_input =>move |_|{
+        button.connect_clicked(move |_|{
                 //model.clear();
             if urls_input.text() !=""{
             write_json("/.config/gv2ray/v2core.json".to_string(),
@@ -56,8 +56,25 @@ pub fn create_sub_window(
 }}",urls_input.text().to_string()));
             }
 
-        }));
+        });
         create_tab(&notebook, "v2ray", boxs.upcast());
+    }
+    {
+        let boxs = gtk::Box::new(gtk::Orientation::Vertical, 10);
+        let boxs2 = gtk::Box::new(gtk::Orientation::Vertical, 10);
+        let urls_input = gtk::Entry::new();
+        let button_box = gtk::ButtonBox::new(gtk::Orientation::Horizontal);
+        button_box.set_layout(gtk::ButtonBoxStyle::End);
+        let button = gtk::Button::with_label("Input");
+        button_box.pack_start(&button, false, false, 0);
+        boxs.pack_start(&boxs2, true, false, 0);
+        boxs.pack_start(&urls_input, true, false, 0);
+        boxs.pack_start(&button_box, false, false, 0);
+        button.connect_clicked(move |_|{
+            let urls = urls_input.text().to_string();
+            create_url(&boxs2, urls);
+        });
+        create_tab(&notebook, "test", boxs.upcast());
     }
     window.add(&notebook);
     window.connect_delete_event(
@@ -70,6 +87,21 @@ pub fn create_sub_window(
     window.show_all();
     // Once the new window has been created, we put it into our hashmap so we can update its
     // title when needed.
+}
+#[allow(dead_code)]
+fn create_url(boxs: &gtk::Box,urls: String) {
+    let url_box = gtk::Box::new(gtk::Orientation::Horizontal,10);
+    let urls_input = gtk::Entry::new();
+    urls_input.set_text(&urls);
+    let button = gtk::Button::with_label("remove");
+    url_box.pack_start(&urls_input, true,false, 0);
+    url_box.pack_start(&button, false,false, 0);
+    boxs.pack_start(&url_box, false, false, 0);
+    button.connect_clicked(glib::clone!(@weak urls_input,@weak boxs => move |_|{
+        boxs.remove(&url_box);
+    }));
+    //显示所有
+    boxs.show_all();
 }
 fn create_tab(notebook: &gtk::Notebook, title: &str, widget: gtk::Widget) {
     let label = gtk::Label::new(Some(title));
