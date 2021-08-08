@@ -1,6 +1,7 @@
-use crate::tool::{get_v2ray, write_json};
+use crate::tool::{get_v2ray, remove_quotation, write_json};
 use gtk::prelude::*;
-use std::cell::RefCell;
+use serde_json::Value;
+use std::{cell::RefCell, env, fs::File, io::prelude::*, path::Path};
 thread_local! {
     static GLOBAL: RefCell<Option<gtk::Box>> = RefCell::new(None);
 }
@@ -36,6 +37,52 @@ pub fn create_sub_window(
         boxs.pack_start(&boxs2, true, false, 0);
         boxs.pack_start(&urls_input, true, false, 0);
         boxs.pack_start(&button_box, false, false, 0);
+        //预加载
+        let home = env::var("HOME").unwrap();
+        let location = home + "/.config/gv2ray/urls.json";
+        let path = Path::new(location.as_str());
+        //let display = path.display();
+        let mut file = match File::open(&path) {
+            // `io::Error` 的 `description` 方法返回一个描述错误的字符串。
+            Err(_) => {
+                let path2 = Path::new(location.as_str());
+                let display2 = path2.display();
+                let mut file2 = match File::create(&path2) {
+                    Err(why) => panic!("couldn't create {}: {}", display2, why.to_string()),
+                    Ok(file2) => file2,
+                };
+                let mut storge2: String = String::new();
+                storge2.push_str("[]");
+                // 将 `LOREM_IPSUM` 字符串写进 `file`，返回 `io::Result<()>`
+                if let Err(why) = file2.write_all(storge2.as_bytes()) {
+                    panic!("couldn't write to {}: {}", display2, why.to_string())
+                }
+                let path3 = Path::new(location.as_str());
+                File::open(&path3).unwrap()
+            }
+            Ok(file) => file,
+        };
+        let mut ss = String::new();
+        match file.read_to_string(&mut ss) {
+            Err(_) => {}
+            Ok(_) => {
+                //json 出现问题返回空
+                let v: Value = match serde_json::from_str(ss.as_str()) {
+                    Err(_) => Value::Null,
+                    Ok(ouput) => ouput,
+                };
+                let mut index = 0;
+                while v[index] != Value::Null {
+                    create_url(
+                        &boxs2,
+                        remove_quotation(v[index]["name"].to_string()),
+                        remove_quotation(v[index]["url"].to_string()),
+                    );
+                    index += 1;
+                }
+            }
+        }
+        // 加载结束
         GLOBAL.with(move |global| {
             *global.borrow_mut() = Some(boxs2);
         });
@@ -44,7 +91,7 @@ pub fn create_sub_window(
             urls_input.set_text("");
             GLOBAL.with(move |global| {
                 if let Some(ref bos) = *global.borrow() {
-                    create_url(bos, urls);
+                    create_url(bos, urls, "".to_string());
                 }
             });
             //create_url(&boxs2, urls);
@@ -52,17 +99,27 @@ pub fn create_sub_window(
         button2.connect_clicked(glib::clone!(@weak model =>move |_|{
             let mut output : Vec<String> = vec![];
             let mut names : Vec<String> = vec![];
+            let mut json : String = "[".to_string();
             GLOBAL.with(move |global|{
                 if let Some(ref boxs2) = *global.borrow(){
                     for index in boxs2.children() {
                         // 通过gtk的子类的事件，获取到entry的控件，从而获取内容
-                        let temp : String = index.downcast_ref::<gtk::Box>().unwrap().children()[1].downcast_ref::<gtk::Entry>().unwrap().text().to_string();
-                        output.push(temp);
-                        let temp2 : String = index.downcast_ref::<gtk::Box>().unwrap().children()[0].downcast_ref::<gtk::Label>().unwrap().text().to_string();
-                        names.push(temp2);
+                        let temp : String = index.downcast_ref::<gtk::Box>().unwrap().children()[0].downcast_ref::<gtk::Label>().unwrap().text().to_string();
+                        names.push(temp.clone());
+                        let temp2 : String = index.downcast_ref::<gtk::Box>().unwrap().children()[1].downcast_ref::<gtk::Entry>().unwrap().text().to_string();
+                        output.push(temp2.clone());
+                        json.push_str(
+                            format!("
+     {{
+        \"name\":\"{}\",
+        \"url\":\"{}\"
+     }},",temp,temp2).as_str());
 
                     }
+                    json.pop();
+                    json.push_str("\n]");
                 }
+                write_json("/.config/gv2ray/urls.json".to_string(), json);
                 //println!("{:?}",output);
                 func(&model,output,names);
             })
@@ -127,10 +184,11 @@ pub fn create_sub_window(
     // title when needed.
 }
 #[allow(dead_code)]
-fn create_url(boxs: &gtk::Box, urls: String) {
+fn create_url(boxs: &gtk::Box, names: String, urls: String) {
     let url_box = gtk::Box::new(gtk::Orientation::Horizontal, 10);
-    let label = gtk::Label::new(Some(&urls));
+    let label = gtk::Label::new(Some(&names));
     let urls_input = gtk::Entry::new();
+    urls_input.set_text(&urls);
     let button = gtk::Button::with_label("remove");
     url_box.pack_start(&label, true, false, 0);
     url_box.pack_start(&urls_input, true, true, 0);
