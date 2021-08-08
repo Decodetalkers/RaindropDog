@@ -7,7 +7,7 @@ thread_local! {
 pub fn create_sub_window(
     application: &gtk::Application,
     title: &str,
-    func: fn(&gtk::TreeStore, Vec<String>),
+    func: fn(&gtk::TreeStore, Vec<String>, Vec<String>),
     model: &gtk::TreeStore,
     mainwindow: &gtk::ApplicationWindow,
 ) {
@@ -36,13 +36,14 @@ pub fn create_sub_window(
         boxs.pack_start(&boxs2, true, false, 0);
         boxs.pack_start(&urls_input, true, false, 0);
         boxs.pack_start(&button_box, false, false, 0);
-        GLOBAL.with(move |global|{
-            *global.borrow_mut() =Some(boxs2);
+        GLOBAL.with(move |global| {
+            *global.borrow_mut() = Some(boxs2);
         });
-        button.connect_clicked(move |_|{
+        button.connect_clicked(move |_| {
             let urls = urls_input.text().to_string();
-            GLOBAL.with(move |global|{
-                if let Some(ref bos) = *global.borrow(){
+            urls_input.set_text("");
+            GLOBAL.with(move |global| {
+                if let Some(ref bos) = *global.borrow() {
                     create_url(bos, urls);
                 }
             });
@@ -50,16 +51,20 @@ pub fn create_sub_window(
         });
         button2.connect_clicked(glib::clone!(@weak model =>move |_|{
             let mut output : Vec<String> = vec![];
+            let mut names : Vec<String> = vec![];
             GLOBAL.with(move |global|{
                 if let Some(ref boxs2) = *global.borrow(){
                     for index in boxs2.children() {
                         // 通过gtk的子类的事件，获取到entry的控件，从而获取内容
-                        let temp : String = index.downcast_ref::<gtk::Box>().unwrap().children()[0].downcast_ref::<gtk::Entry>().unwrap().text().to_string();
+                        let temp : String = index.downcast_ref::<gtk::Box>().unwrap().children()[1].downcast_ref::<gtk::Entry>().unwrap().text().to_string();
                         output.push(temp);
+                        let temp2 : String = index.downcast_ref::<gtk::Box>().unwrap().children()[0].downcast_ref::<gtk::Label>().unwrap().text().to_string();
+                        names.push(temp2);
+
                     }
                 }
                 //println!("{:?}",output);
-                func(&model,output);
+                func(&model,output,names);
             })
         }));
         create_tab(&notebook, "urls", boxs.upcast());
@@ -92,15 +97,19 @@ pub fn create_sub_window(
         boxs.pack_start(&button_box, false, false, 0);
         let (_, v2ray) = get_v2ray();
         urls_input.set_text(&v2ray);
-        button.connect_clicked(move |_|{
-                //model.clear();
-            if urls_input.text() !=""{
-            write_json("/.config/gv2ray/v2core.json".to_string(),
-                format!("{{
+        button.connect_clicked(move |_| {
+            //model.clear();
+            if urls_input.text() != "" {
+                write_json(
+                    "/.config/gv2ray/v2core.json".to_string(),
+                    format!(
+                        "{{
     \"v2core\":\"{}\"
-}}",urls_input.text().to_string()));
+}}",
+                        urls_input.text().to_string()
+                    ),
+                );
             }
-
         });
         create_tab(&notebook, "v2ray", boxs.upcast());
     }
@@ -118,13 +127,14 @@ pub fn create_sub_window(
     // title when needed.
 }
 #[allow(dead_code)]
-fn create_url(boxs: &gtk::Box,urls: String) {
-    let url_box = gtk::Box::new(gtk::Orientation::Horizontal,10);
+fn create_url(boxs: &gtk::Box, urls: String) {
+    let url_box = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+    let label = gtk::Label::new(Some(&urls));
     let urls_input = gtk::Entry::new();
-    urls_input.set_text(&urls);
     let button = gtk::Button::with_label("remove");
-    url_box.pack_start(&urls_input, true,false, 0);
-    url_box.pack_start(&button, false,false, 0);
+    url_box.pack_start(&label, true, false, 0);
+    url_box.pack_start(&urls_input, true, true, 0);
+    url_box.pack_start(&button, false, false, 0);
     boxs.pack_start(&url_box, false, false, 0);
     button.connect_clicked(glib::clone!(@weak urls_input,@weak boxs => move |_|{
         boxs.remove(&url_box);

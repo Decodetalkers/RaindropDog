@@ -216,11 +216,9 @@ fn create_and_fill_model_before(model: &TreeStore) {
             while v[index] != Value::Null {
                 let mut urls: Vec<Urls> = vec![];
                 let mut index2 = 0;
-                let iter = model.insert_with_values(
-                    None,
-                    None,
-                    &[(0, &(tool::remove_quotation(v[index]["name"].to_string())))],
-                );
+                //获取名字
+                let name = tool::remove_quotation(v[index]["name"].to_string());
+                let iter = model.insert_with_values(None, None, &[(0, &name)]);
                 while v[index]["urls"][index2] != Value::Null {
                     let the_url = v[index]["urls"][index2]["url"].to_string();
                     let length = the_url.len();
@@ -252,7 +250,7 @@ fn create_and_fill_model_before(model: &TreeStore) {
                 }
                 index += 1;
                 all_urls.push(AllUrls {
-                    name: "test".to_string(),
+                    name,
                     content: urls,
                 })
             }
@@ -264,7 +262,7 @@ fn create_and_fill_model_before(model: &TreeStore) {
 }
 
 // 生成tree
-fn create_and_fill_model(model: &TreeStore, temp: Vec<String>) {
+fn create_and_fill_model(model: &TreeStore, temp: Vec<String>, name: Vec<String>) {
     create_storage_before();
     model.clear();
     let future = get_the_key(temp);
@@ -275,12 +273,16 @@ fn create_and_fill_model(model: &TreeStore, temp: Vec<String>) {
     storge.push('[');
     storge.push('\n');
 
-    for pair in output.into_iter() {
+    for (pair, aname) in output.into_iter().zip(name.clone().into_iter()) {
         let mut urls: Vec<Urls> = vec![];
         storge.push_str(
-            "{
-    \"name\":\"test\",
+            format!(
+                "{{
+    \"name\":\"{}\",
     \"urls\":[",
+                aname
+            )
+            .as_str(),
         );
         let mut input_in: Vec<String> = vec![];
         for pair2 in pair.into_iter() {
@@ -322,7 +324,7 @@ fn create_and_fill_model(model: &TreeStore, temp: Vec<String>) {
             );
         }
         all_urls.push(AllUrls {
-            name: "test".to_string(),
+            name: aname,
             content: urls,
         });
         storge.pop();
@@ -370,9 +372,9 @@ fn create_and_fill_model(model: &TreeStore, temp: Vec<String>) {
             *global.borrow_mut() = Some(all_urls);
         });
         let entries = &input;
-        for (_, entry) in entries.iter().enumerate() {
-            let iter = model.insert_with_values(None, None, &[(0, &("test".to_string()))]);
-            for (_, entry2) in entry.iter().enumerate() {
+        for (entry, aname) in entries.iter().zip(name.iter()) {
+            let iter = model.insert_with_values(None, None, &[(0, &aname)]);
+            for entry2 in entry.iter() {
                 model.insert_with_values(
                     Some(&iter),
                     None,
