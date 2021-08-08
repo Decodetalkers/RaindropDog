@@ -37,6 +37,14 @@ pub fn create_sub_window(
         boxs.pack_start(&boxs2, true, false, 0);
         boxs.pack_start(&urls_input, true, false, 0);
         boxs.pack_start(&button_box, false, false, 0);
+
+        //创建快捷键
+        let accel_group = gtk::AccelGroup::new();
+        window.add_accel_group(&accel_group);
+        //添加用户组
+        let (key, modifier) = gtk::accelerator_parse("Return");
+        button.add_accelerator("clicked", &accel_group, key, modifier, gtk::AccelFlags::VISIBLE);
+        //创建结束
         //预加载
         let home = env::var("HOME").unwrap();
         let location = home + "/.config/gv2ray/urls.json";
@@ -183,7 +191,6 @@ pub fn create_sub_window(
     // Once the new window has been created, we put it into our hashmap so we can update its
     // title when needed.
 }
-#[allow(dead_code)]
 fn create_url(boxs: &gtk::Box, names: String, urls: String) {
     let url_box = gtk::Box::new(gtk::Orientation::Horizontal, 10);
     let label = gtk::Label::new(Some(&names));
@@ -197,13 +204,6 @@ fn create_url(boxs: &gtk::Box, names: String, urls: String) {
     button.connect_clicked(glib::clone!(@weak urls_input,@weak boxs => move |_|{
         boxs.remove(&url_box);
     }));
-    //println!("{:?}",boxs.children());
-    //if boxs.children().len() > 1{
-    //    //println!("{:?}",boxs.children()[0]);
-    //    //这个可以通过gtk自带的反射获取内容
-    //    println!("{}",(boxs.children()[0].downcast_ref::<gtk::Box>().unwrap().children()[0]).downcast_ref::<gtk::Entry>().unwrap().text());
-    //}
-    //显示所有
     boxs.show_all();
 }
 fn create_tab(notebook: &gtk::Notebook, title: &str, widget: gtk::Widget) {
