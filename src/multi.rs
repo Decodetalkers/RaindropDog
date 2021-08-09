@@ -21,7 +21,7 @@ pub fn create_sub_window(
 
     window.set_title(title);
     window.set_default_size(400, 40);
-    window.set_resizable(false);
+    //window.set_resizable(false);
 
     // urls设置界面
     {
