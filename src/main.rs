@@ -1,8 +1,7 @@
 mod multi;
 mod spider;
 mod tool;
-#[macro_use]
-extern crate lazy_static;
+use lazy_static::lazy_static;
 use futures::executor::block_on;
 use gtk::prelude::*;
 use gtk::{
