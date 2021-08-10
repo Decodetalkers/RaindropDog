@@ -702,7 +702,7 @@ fn build_ui(application: &gtk::Application) {
 
 fn main() {
     let application = gtk::Application::new(
-        Some("com.github.gtk-rs.examples.simple_treeview"),
+        Some("com.github.gv2ray"),
         Default::default(),
     );
 
