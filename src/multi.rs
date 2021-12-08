@@ -56,14 +56,14 @@ pub fn create_sub_window(
                 let path2 = Path::new(location.as_str());
                 let display2 = path2.display();
                 let mut file2 = match File::create(&path2) {
-                    Err(why) => panic!("couldn't create {}: {}", display2, why.to_string()),
+                    Err(why) => panic!("couldn't create {}: {}", display2, why),
                     Ok(file2) => file2,
                 };
                 let mut storge2: String = String::new();
                 storge2.push_str("[]");
                 // 将 `LOREM_IPSUM` 字符串写进 `file`，返回 `io::Result<()>`
                 if let Err(why) = file2.write_all(storge2.as_bytes()) {
-                    panic!("couldn't write to {}: {}", display2, why.to_string())
+                    panic!("couldn't write to {}: {}", display2, why)
                 }
                 let path3 = Path::new(location.as_str());
                 File::open(&path3).unwrap()
@@ -171,7 +171,7 @@ pub fn create_sub_window(
                         "{{
     \"v2core\":\"{}\"
 }}",
-                        urls_input.text().to_string()
+                        urls_input.text()
                     ),
                 );
             }

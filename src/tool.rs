@@ -13,13 +13,13 @@ pub fn write_json(location: String, content: String) {
     let path2 = Path::new(&finally);
     let display2 = path2.display();
     let mut file2 = match File::create(&path2) {
-        Err(why) => panic!("couldn't create {}: {}", display2, why.to_string()),
+        Err(why) => panic!("couldn't create {}: {}", display2, why),
         Ok(file2) => file2,
     };
     let storge2: String = content;
     // 将 `LOREM_IPSUM` 字符串写进 `file`，返回 `io::Result<()>`
     if let Err(why) = file2.write_all(storge2.as_bytes()) {
-        panic!("couldn't write to {}: {}", display2, why.to_string())
+        panic!("couldn't write to {}: {}", display2, why)
     }
 }
 //获取v2core位置
@@ -34,14 +34,14 @@ pub fn get_v2ray() -> (String, String) {
             let path2 = Path::new(location.as_str());
             let display2 = path2.display();
             let mut file2 = match File::create(&path2) {
-                Err(why) => panic!("couldn't create {}: {}", display2, why.to_string()),
+                Err(why) => panic!("couldn't create {}: {}", display2, why),
                 Ok(file2) => file2,
             };
             let mut storge2: String = String::new();
             storge2.push_str("{\n\"v2core\":\"/usr/bin/v2ray\"\n}");
             // 将 `LOREM_IPSUM` 字符串写进 `file`，返回 `io::Result<()>`
             if let Err(why) = file2.write_all(storge2.as_bytes()) {
-                panic!("couldn't write to {}: {}", display2, why.to_string())
+                panic!("couldn't write to {}: {}", display2, why)
             }
             let path3 = Path::new(location.as_str());
             File::open(&path3).unwrap()
@@ -111,18 +111,18 @@ impl Urls {
                 let header2 = ascii_to_string(base64::decode(header.as_bytes()).unwrap());
                 // 通过分号切开两个内容
                 let header3: Vec<&str> = header2.split(':').collect();
-                let net = format!("\"{}\"", header3[0].to_string());
-                let id = format!("\"{}\"", header3[1].to_string());
+                let net = format!("\"{}\"", header3[0]);
+                let id = format!("\"{}\"", header3[1]);
 
                 let first_temp = first[1].to_string();
                 let second: Vec<&str> = first_temp.split('#').collect();
                 let ps0 = urlencoding::decode(second[1]).unwrap();
-                let ps = format!("\"{}\"", ps0.to_string());
+                let ps = format!("\"{}\"", ps0);
 
                 let second_temp = second[0].to_string();
                 let third: Vec<&str> = second_temp.split(':').collect();
-                let add = format!("\"{}\"", third[0].to_string());
-                let port = format!("\"{}\"", third[1].to_string());
+                let add = format!("\"{}\"", third[0]);
+                let port = format!("\"{}\"", third[1]);
                 Urls {
                     urls: url,
                     func: "\"ss\"".to_string(),

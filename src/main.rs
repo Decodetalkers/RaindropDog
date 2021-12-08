@@ -88,11 +88,11 @@ fn run(name: &Urls, text: &gtk::TextView) {
     //let path2 = Path::new("storage.json");
     let display2 = path2.display();
     let mut file2 = match File::create(&path2) {
-        Err(why) => panic!("couldn't create {}: {}", display2, why.to_string()),
+        Err(why) => panic!("couldn't create {}: {}", display2, why),
         Ok(file2) => file2,
     };
     if let Err(why) = file2.write_all(json.as_bytes()) {
-        panic!("couldn't write to {}: {}", display2, why.to_string())
+        panic!("couldn't write to {}: {}", display2, why)
     }
 
     let (home2, content) = tool::get_v2ray();
@@ -187,14 +187,14 @@ fn create_and_fill_model_before(model: &TreeStore) {
             let path2 = Path::new(location.as_str());
             let display2 = path2.display();
             let mut file2 = match File::create(&path2) {
-                Err(why) => panic!("couldn't create {}: {}", display2, why.to_string()),
+                Err(why) => panic!("couldn't create {}: {}", display2, why),
                 Ok(file2) => file2,
             };
             let mut storge2: String = String::new();
             storge2.push_str("[]");
             // 将 `LOREM_IPSUM` 字符串写进 `file`，返回 `io::Result<()>`
             if let Err(why) = file2.write_all(storge2.as_bytes()) {
-                panic!("couldn't write to {}: {}", display2, why.to_string())
+                panic!("couldn't write to {}: {}", display2, why)
             }
             let path3 = Path::new(location.as_str());
             File::open(&path3).unwrap()
@@ -359,13 +359,13 @@ fn create_and_fill_model(model: &TreeStore, temp: Vec<String>, name: Vec<String>
         //let path2 = Path::new("storage.json");
         let display2 = path2.display();
         let mut file2 = match File::create(&path2) {
-            Err(why) => panic!("couldn't create {}: {}", display2, why.to_string()),
+            Err(why) => panic!("couldn't create {}: {}", display2, why),
             Ok(file2) => file2,
         };
 
         // 将 `LOREM_IPSUM` 字符串写进 `file`，返回 `io::Result<()>`
         if let Err(why) = file2.write_all(storge.as_bytes()) {
-            panic!("couldn't write to {}: {}", display2, why.to_string())
+            panic!("couldn't write to {}: {}", display2, why)
         }
         GLOBALURL.with(move |global| {
             *global.borrow_mut() = Some(all_urls);
