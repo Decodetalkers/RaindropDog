@@ -43,7 +43,13 @@ pub fn create_sub_window(
         window.add_accel_group(&accel_group);
         //添加用户组
         let (key, modifier) = gtk::accelerator_parse("Return");
-        button.add_accelerator("clicked", &accel_group, key, modifier, gtk::AccelFlags::VISIBLE);
+        button.add_accelerator(
+            "clicked",
+            &accel_group,
+            key,
+            modifier,
+            gtk::AccelFlags::VISIBLE,
+        );
         //创建结束
         //预加载
         let home = env::var("HOME").unwrap();
@@ -134,23 +140,6 @@ pub fn create_sub_window(
         }));
         create_tab(&notebook, "urls", boxs.upcast());
     }
-    //{
-    //    let boxs = gtk::Box::new(gtk::Orientation::Vertical, 10);
-    //    let urls_input = gtk::Entry::new();
-    //    let button_box = gtk::ButtonBox::new(gtk::Orientation::Horizontal);
-    //    button_box.set_layout(gtk::ButtonBoxStyle::End);
-    //    let button = gtk::Button::with_label("Input");
-    //    button_box.pack_start(&button, false, false, 0);
-    //    boxs.pack_start(&urls_input, true, false, 0);
-    //    boxs.pack_start(&button_box, false, false, 0);
-    //    //button.connect_clicked(glib::clone!(@weak model =>move |_|{
-    //    //        //model.clear();
-    //    //        let input: String = urls_input.text().to_string();
-    //    //        let temp : Vec<String> = vec![input];
-    //    //        func(&model, temp);
-    //    //}));
-    //    create_tab(&notebook, "urls", boxs.upcast());
-    //}
     {
         let boxs = gtk::Box::new(gtk::Orientation::Vertical, 10);
         let urls_input = gtk::Entry::new();

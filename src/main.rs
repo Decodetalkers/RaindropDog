@@ -1,13 +1,13 @@
 mod multi;
 mod spider;
 mod tool;
-use lazy_static::lazy_static;
 use futures::executor::block_on;
 use gtk::prelude::*;
 use gtk::{
     ApplicationWindow, CellRendererText, Label, Orientation, TreeStore, TreeView, TreeViewColumn,
     WindowPosition,
 };
+use lazy_static::lazy_static;
 //use serde_json::Result;
 use serde_json::Value;
 use spider::{ascii_to_char, get_the_key};
@@ -701,10 +701,7 @@ fn build_ui(application: &gtk::Application) {
 }
 
 fn main() {
-    let application = gtk::Application::new(
-        Some("com.github.gv2ray"),
-        Default::default(),
-    );
+    let application = gtk::Application::new(Some("com.github.gv2ray"), Default::default());
 
     application.connect_activate(build_ui);
 
